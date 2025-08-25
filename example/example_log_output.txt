@@ -1,0 +1,150 @@
+///////////////////////////////////////////////////////////////////////////////
+// Example console output from running example/any_logger_email_example.dart //
+///////////////////////////////////////////////////////////////////////////////
+ Email Appender Configuration Examples
+
+ ==================================================
+
+ ### Example 1: Basic Configuration ###
+
+ Basic config:
+   type: EMAIL
+   smtpHost: smtp.example.com
+   smtpPort: 587
+   fromEmail: logger@example.com
+   toEmails: admin@example.com, dev@example.com
+   username: logger@example.com
+   password: ******
+   level: ERROR
+   batchSize: 50
+   batchIntervalMinutes: 5
+
+ SSL/TLS config:
+   type: EMAIL
+   smtpHost: secure.mailserver.com
+   smtpPort: 465
+   ssl: true
+   fromEmail: noreply@example.com
+   fromName: App Logger
+   toEmails: support@example.com
+   level: WARN
+
+ ### Example 2: Popular Email Services ###
+
+ Gmail config:
+   type: EMAIL
+   smtpHost: smtp.gmail.com
+   smtpPort: 587
+   ssl: false
+   fromEmail: your.app@gmail.com
+   toEmails: [admin@example.com]
+   username: your.app@gmail.com
+   password: app...
+   level: ERROR
+   subjectPrefix: [MyApp Error]
+
+ Office 365 config:
+   type: EMAIL
+   smtpHost: smtp.office365.com
+   smtpPort: 587
+   ssl: false
+   fromEmail: logger@company.com
+   toEmails: [it-team@company.com]
+   username: logger@company.com
+   password: ******
+   level: ERROR
+
+ SendGrid config:
+   type: EMAIL
+   smtpHost: smtp.sendgrid.net
+   smtpPort: 587
+   fromEmail: alerts@myapp.com
+   toEmails: [ops@myapp.com]
+   username: apikey
+   password: SG.***
+   level: ERROR
+
+ ### Example 3: Advanced Configuration ###
+
+ Advanced configuration:
+   type: EMAIL
+   smtpHost: mail.enterprise.com
+   smtpPort: 587
+   ssl: false
+   allowInsecure: false
+   ignoreBadCertificate: false
+   fromEmail: monitoring@enterprise.com
+   fromName: System Monitor
+   toEmails: devops@enterprise.com, cto@enterprise.com
+   ccEmails: manager@enterprise.com
+   bccEmails: archive@enterprise.com
+   replyTo: support@enterprise.com
+   username: monitoring@enterprise.com
+   password: ******
+   level: WARN
+   subjectPrefix: [PROD-ALERT]
+   includeHostname: true
+   includeAppInfo: true
+   batchSize: 25
+   batchIntervalMinutes: 10
+   maxEmailsPerHour: 30
+   sendAsHtml: true
+   includeStackTrace: true
+   includeMetadata: true
+   groupByLevel: true
+   sendImmediatelyOnError: true
+   immediateErrorThreshold: 5
+
+ Daily digest configuration:
+   type: EMAIL
+   smtpHost: smtp.example.com
+   smtpPort: 587
+   fromEmail: reports@example.com
+   toEmails: management@example.com
+   level: INFO
+   subjectPrefix: [Daily Log Digest]
+   batchSize: 1000
+   batchIntervalMinutes: 1440
+   sendImmediatelyOnError: false
+   groupByLevel: true
+   includeStackTrace: false
+   sendAsHtml: true
+
+ ### Example 4: Builder Pattern ###
+
+ Built appender with:
+   SMTP: smtp.gmail.com:587
+   From: app@gmail.com
+   To: admin@example.com, dev@example.com
+   Level: ERROR
+   Batch size: 10
+   Batch interval: 0:02:00.000000
+   HTML format: true
+
+ Gmail with critical alert preset:
+   SMTP: smtp.gmail.com:587
+   Subject prefix: [CRITICAL ALERT]
+   Batch size: 5
+   Send immediately on error: true
+
+ ### Example 5: LoggerFactory Integration ###
+
+ LoggerFactory configuration:
+   Appenders: 2
+     1. Type: CONSOLE, Level: INFO
+     2. Type: EMAIL, Level: ERROR
+
+ Logger configured with 2 appenders:
+   - CONSOLE (Level: INFO)
+   - EMAIL (Level: ERROR)
+
+ Using LoggerBuilder with Gmail:
+ Builder created 2 appenders
+
+ Using production preset with email:
+ Production preset created 3 appenders
+
+ ==================================================
+ Examples completed (no actual emails sent)
+
+ Process finished with exit code 0

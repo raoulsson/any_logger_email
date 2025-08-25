@@ -1,0 +1,38 @@
+name: any_logger_email
+description: >-
+  An extension for any_logger that sends log records via email using SMTP. Supports batching, 
+  HTML formatting, rate limiting, and multiple popular email services including Gmail, Office 365, 
+  and SendGrid.
+
+version: 1.0.0
+
+homepage: https://github.com/raoulsson/any_logger_email
+repository: https://github.com/raoulsson/any_logger_email
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+
+dependencies:
+  any_logger: ^1.0.4
+  mailer: ^6.0.0
+
+dev_dependencies:
+  test: ^1.24.0
+
+topics:
+  - logging
+  - email
+  - smtp
+  - alerts
+  - monitoring
+
+funding:
+  - https://github.com/sponsors/raoulsson
+  - https://www.buymeacoffee.com/raoulsson
