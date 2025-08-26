@@ -20,8 +20,11 @@ class AnyLoggerEmailExtension {
 
   /// Registers the Email appender with the AnyLogger registry.
   ///
-  /// This is called automatically when the package is imported.
-  /// Calling it multiple times is safe - it will only register once.
+  /// Clients have to actually call this before initializing the LoggerFactory
+  /// as Dart will "optimize away" any code that in other languages executes on
+  /// loading through importing the class file.
+  ///
+  /// Call: AnyLoggerEmailExtension.register();
   static void register() {
     if (_registered) return;
 
@@ -46,16 +49,3 @@ class AnyLoggerEmailExtension {
   /// Check if the appender is registered
   static bool get isRegistered => _registered;
 }
-
-// Auto-register when the library is imported
-// Use a simple static initialization that Dart guarantees to run
-class _Init {
-  static final _instance = _Init._();
-
-  _Init._() {
-    AnyLoggerEmailExtension.register();
-  }
-}
-
-// Force initialization by accessing the singleton
-final ensureInitialized = _Init._instance;

@@ -21,11 +21,16 @@ dependencies:
   any_logger_email: ^x.y.z  // See Installing
 ```
 
-The Email appender auto-registers when imported:
+To register the EMAIL appender you have to import the library
 
 ```dart
 import 'package:any_logger/any_logger.dart';
 import 'package:any_logger_email/any_logger_email.dart';
+```
+and call:
+
+```dart
+AnyLoggerEmailExtension.register();
 ```
 
 ## Quick Start

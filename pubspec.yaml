@@ -3,7 +3,7 @@ description: >-
   Email appender for any_logger with SMTP support, batching, HTML formatting,
   and rate limiting. Works with Gmail, Office 365, SendGrid, and more.
 
-version: 1.0.4
+version: 1.0.5
 
 homepage: https://github.com/raoulsson/any_logger_email
 repository: https://github.com/raoulsson/any_logger_email
@@ -19,7 +19,7 @@ platforms:
   windows:
 
 dependencies:
-  any_logger: ^1.0.7
+  any_logger: ^1.0.8
   mailer: ^6.0.0
 
 dev_dependencies:
