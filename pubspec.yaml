@@ -20,7 +20,7 @@ platforms:
   windows:
 
 dependencies:
-  any_logger: ^1.0.4
+  any_logger: ^1.0.5
   mailer: ^6.0.0
 
 dev_dependencies:

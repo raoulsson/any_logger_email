@@ -4,6 +4,7 @@
 
 * Updated README
 * Fixed issues reported by pano
+* Dependency to any_logger ^1.0.5
 
 ## 1.0.1
 
