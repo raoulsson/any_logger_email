@@ -17,8 +17,8 @@ An email appender extension for [Any Logger](https://pub.dev/packages/any_logger
 
 ```yaml
 dependencies:
-  any_logger: ^1.0.4
-  any_logger_email: ^1.0.0
+  any_logger: ^x.y.z
+  any_logger_email: ^x.y.z  // See Installing
 ```
 
 The Email appender auto-registers when imported:
