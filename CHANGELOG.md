@@ -3,6 +3,7 @@
 ## 1.0.2
 
 * Updated README
+* Fixed issues reported by pano
 
 ## 1.0.1
 

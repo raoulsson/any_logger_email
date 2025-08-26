@@ -65,8 +65,9 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     if (username != null) config['username'] = username;
     if (password != null) config['password'] = password;
     if (ccEmails != null && ccEmails.isNotEmpty) config['ccEmails'] = ccEmails;
-    if (bccEmails != null && bccEmails.isNotEmpty)
+    if (bccEmails != null && bccEmails.isNotEmpty) {
       config['bccEmails'] = bccEmails;
+    }
     if (replyTo != null) config['replyTo'] = replyTo;
 
     return addAppenderConfig(config);
