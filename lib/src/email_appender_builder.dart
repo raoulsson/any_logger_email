@@ -36,7 +36,7 @@ EmailAppenderBuilder emailAppenderBuilder() => EmailAppenderBuilder();
 
 class EmailAppenderBuilder {
   final Map<String, dynamic> _config = {
-    'type': 'EMAIL',
+    'type': EmailAppender.appenderName,
   };
 
   /// Creates a new EmailAppenderBuilder.

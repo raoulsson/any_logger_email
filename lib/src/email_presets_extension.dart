@@ -1,5 +1,7 @@
 import 'package:any_logger/any_logger.dart';
 
+import '../any_logger_email.dart';
+
 /// Extension methods for adding EmailAppender to presets
 extension EmailPresets on LoggerPresets {
   /// Production preset with email alerts for critical errors
@@ -30,7 +32,7 @@ extension EmailPresets on LoggerPresets {
           'rotationCycle': 'DAY',
         },
         {
-          'type': 'EMAIL',
+          'type': EmailAppender.appenderName,
           'smtpHost': smtpHost,
           'smtpPort': smtpPort,
           'fromEmail': fromEmail,
@@ -70,7 +72,7 @@ extension EmailPresets on LoggerPresets {
           'dateFormat': 'HH:mm:ss.SSS',
         },
         {
-          'type': 'EMAIL',
+          'type': EmailAppender.appenderName,
           'smtpHost': smtpHost,
           'smtpPort': smtpPort,
           'fromEmail': fromEmail,
@@ -117,7 +119,7 @@ extension EmailPresets on LoggerPresets {
           'rotationCycle': 'DAY',
         },
         {
-          'type': 'EMAIL',
+          'type': EmailAppender.appenderName,
           'smtpHost': smtpHost,
           'smtpPort': smtpPort,
           'fromEmail': fromEmail,
@@ -168,7 +170,7 @@ extension EmailPresets on LoggerPresets {
           'maxFileSize': '100MB',
         },
         {
-          'type': 'EMAIL',
+          'type': EmailAppender.appenderName,
           'smtpHost': smtpHost,
           'smtpPort': smtpPort,
           'fromEmail': fromEmail,
@@ -208,7 +210,7 @@ extension EmailPresets on LoggerPresets {
           'dateFormat': 'yyyy-MM-dd HH:mm:ss',
         },
         {
-          'type': 'EMAIL',
+          'type': EmailAppender.appenderName,
           'smtpHost': smtpHost,
           'smtpPort': smtpPort,
           'fromEmail': fromEmail,
@@ -233,7 +235,7 @@ extension EmailPresets on LoggerPresets {
     // Add SMS gateway emails if provided
     if (smsEmails != null && smsEmails.isNotEmpty) {
       config['appenders']!.add({
-        'type': 'EMAIL',
+        'type': EmailAppender.appenderName,
         'smtpHost': smtpHost,
         'smtpPort': smtpPort,
         'fromEmail': fromEmail,

@@ -1,5 +1,7 @@
 import 'package:any_logger/any_logger.dart';
 
+import '../any_logger_email.dart';
+
 /// Builder extension for EmailAppender
 extension EmailLoggerBuilderExtension on LoggerBuilder {
   /// Adds an email appender to the logger configuration.
@@ -34,7 +36,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     String dateFormat = Appender.defaultDateFormat,
   }) {
     final config = <String, dynamic>{
-      'type': 'EMAIL',
+      'type': EmailAppender.appenderName,
       'smtpHost': smtpHost,
       'smtpPort': smtpPort,
       'fromEmail': fromEmail,

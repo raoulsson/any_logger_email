@@ -17,7 +17,7 @@ import 'package:mailer/smtp_server.dart';
 /// - Priority-based sending
 /// - Attachment support for critical errors
 class EmailAppender extends Appender {
-  static const String LOGGER_NAME = 'EMAIL';
+  static const String appenderName = 'EMAIL';
 
   // SMTP Configuration
   late String smtpHost;
@@ -744,7 +744,7 @@ class EmailAppender extends Appender {
 
   @override
   String getType() {
-    return 'EMAIL';
+    return appenderName;
   }
 
   /// Get statistics about sent emails

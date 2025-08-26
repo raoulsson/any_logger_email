@@ -25,7 +25,7 @@ class AnyLoggerEmailExtension {
   static void register() {
     if (_registered) return;
 
-    AppenderRegistry.instance.register('EMAIL', (config,
+    AppenderRegistry.instance.register(EmailAppender.appenderName, (config,
         {test = false, date}) async {
       return await EmailAppender.fromConfig(config, test: test, date: date);
     });
@@ -39,7 +39,7 @@ class AnyLoggerEmailExtension {
 
   /// Unregisters the Email appender (mainly for testing).
   static void unregister() {
-    AppenderRegistry.instance.unregister('EMAIL');
+    AppenderRegistry.instance.unregister(EmailAppender.appenderName);
     _registered = false;
   }
 
