@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+* Upgrading to any_logger 1.0.7 - Important bug fix
+
 ## 1.0.3
 
 * Shortening project description
