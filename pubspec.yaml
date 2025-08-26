@@ -4,7 +4,7 @@ description: >-
   HTML formatting, rate limiting, and multiple popular email services including Gmail, Office 365, 
   and SendGrid.
 
-version: 1.0.1
+version: 1.0.2
 
 homepage: https://github.com/raoulsson/any_logger_email
 repository: https://github.com/raoulsson/any_logger_email

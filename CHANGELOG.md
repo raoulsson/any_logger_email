@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+* Depend on any_logger ^1.0.6
+
 ## 1.0.1
 
 * Using static const String appenderName = 'EMAIL'; instead of string
