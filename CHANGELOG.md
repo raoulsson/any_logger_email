@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+* Shortening project description
+
 ## 1.0.2
 
 * Depend on any_logger ^1.0.6
