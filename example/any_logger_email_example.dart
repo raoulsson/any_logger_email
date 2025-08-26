@@ -53,7 +53,7 @@ void example1_basicConfig() {
     if (key == 'password') {
       print('  $key: ******');
     } else if (value is List) {
-      print('  $key: ${(value as List).join(", ")}');
+      print('  $key: ${(value).join(", ")}');
     } else {
       print('  $key: $value');
     }
@@ -186,7 +186,7 @@ void example3_advanced() {
     if (key == 'password') {
       print('  $key: ******');
     } else if (value is List) {
-      print('  $key: ${(value as List).join(", ")}');
+      print('  $key: ${(value).join(", ")}');
     } else {
       print('  $key: $value');
     }
@@ -212,7 +212,7 @@ void example3_advanced() {
   print('\nDaily digest configuration:');
   digestConfig.forEach((key, value) {
     if (value is List) {
-      print('  $key: ${(value as List).join(", ")}');
+      print('  $key: ${(value).join(", ")}');
     } else {
       print('  $key: $value');
     }

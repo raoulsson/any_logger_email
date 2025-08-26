@@ -177,10 +177,8 @@ void main() {
     late EmailAppender appender;
 
     tearDown(() async {
-      if (appender != null) {
-        await appender.dispose();
-      }
-      await LoggerFactory.dispose();
+      await appender.dispose();
+          await LoggerFactory.dispose();
     });
 
     test('should batch logs until batch size reached', () async {
