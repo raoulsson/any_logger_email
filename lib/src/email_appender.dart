@@ -735,4 +735,9 @@ class EmailAppender extends Appender {
       'rateLimitRemaining': maxEmailsPerHour - _sentTimestamps.length,
     };
   }
+
+  @override
+  String getShortConfigDesc() {
+    return 'smtp: $smtpHost:$smtpPort, from: $fromEmail, to: ${toEmails.join(", ")}';
+  }
 }

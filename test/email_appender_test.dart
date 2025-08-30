@@ -47,12 +47,8 @@ void main() {
         'toEmails': 'admin@example.com, dev@example.com, support@example.com',
       };
 
-      final stringAppender =
-          await EmailAppender.fromConfig(stringConfig, test: true);
-      expect(
-          stringAppender.toEmails,
-          equals(
-              ['admin@example.com', 'dev@example.com', 'support@example.com']));
+      final stringAppender = await EmailAppender.fromConfig(stringConfig, test: true);
+      expect(stringAppender.toEmails, equals(['admin@example.com', 'dev@example.com', 'support@example.com']));
 
       // List format
       final listConfig = {
@@ -63,10 +59,8 @@ void main() {
         'toEmails': ['admin@example.com', 'dev@example.com'],
       };
 
-      final listAppender =
-          await EmailAppender.fromConfig(listConfig, test: true);
-      expect(listAppender.toEmails,
-          equals(['admin@example.com', 'dev@example.com']));
+      final listAppender = await EmailAppender.fromConfig(listConfig, test: true);
+      expect(listAppender.toEmails, equals(['admin@example.com', 'dev@example.com']));
     });
 
     test('should configure SMTP settings correctly', () async {
@@ -178,7 +172,7 @@ void main() {
 
     tearDown(() async {
       await appender.dispose();
-          await LoggerFactory.dispose();
+      await LoggerFactory.dispose();
     });
 
     test('should batch logs until batch size reached', () async {
@@ -372,26 +366,19 @@ void main() {
     test('should throw if required fields are missing', () async {
       // Missing SMTP host
       expect(
-        () async => await emailAppenderBuilder()
-            .withFrom('test@example.com')
-            .withTo(['admin@example.com']).build(),
+        () async => await emailAppenderBuilder().withFrom('test@example.com').withTo(['admin@example.com']).build(),
         throwsA(isA<ArgumentError>()),
       );
 
       // Missing from email
       expect(
-        () async => await emailAppenderBuilder()
-            .withSmtp('smtp.test.com', 587)
-            .withTo(['admin@example.com']).build(),
+        () async => await emailAppenderBuilder().withSmtp('smtp.test.com', 587).withTo(['admin@example.com']).build(),
         throwsA(isA<ArgumentError>()),
       );
 
       // Missing to emails
       expect(
-        () async => await emailAppenderBuilder()
-            .withSmtp('smtp.test.com', 587)
-            .withFrom('test@example.com')
-            .build(),
+        () async => await emailAppenderBuilder().withSmtp('smtp.test.com', 587).withFrom('test@example.com').build(),
         throwsA(isA<ArgumentError>()),
       );
     });
