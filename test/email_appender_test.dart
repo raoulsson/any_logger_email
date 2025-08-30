@@ -422,6 +422,7 @@ void main() {
 
     test('should work with LoggerBuilder extension', () async {
       await LoggerFactory.builder()
+          .replaceAll()
           .console(level: Level.INFO)
           .email(
             smtpHost: 'smtp.test.com',
@@ -444,6 +445,7 @@ void main() {
 
     test('should work with Gmail extension method', () async {
       await LoggerFactory.builder()
+          .replaceAll()
           .console(level: Level.INFO)
           .gmail(
             username: 'user@gmail.com',

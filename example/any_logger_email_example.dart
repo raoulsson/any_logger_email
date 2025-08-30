@@ -320,6 +320,7 @@ Future<void> example5_loggerFactory() async {
   // Builder-based setup with Gmail
   print('\nUsing LoggerBuilder with Gmail:');
   await LoggerFactory.builder()
+      .replaceAll()
       .console(level: Level.INFO)
       .gmail(
         username: 'app@gmail.com',

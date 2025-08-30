@@ -19,11 +19,7 @@ platforms:
   windows:
 
 dependencies:
-  #  any_logger: ^1.0.11
-  any_logger:
-    git:
-      url: https://github.com/raoulsson/any_logger
-      ref: dev27
+  any_logger: ^1.0.12
   mailer: ^6.0.0
 
 dev_dependencies:

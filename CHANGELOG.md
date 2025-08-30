@@ -3,6 +3,7 @@
 ## 1.0.7
 
 * Added new appender method for short self description to improve logger config debugging
+* Updated tests to work with LoggerBuilder changes from any_logger 1.0.12
 
 ## 1.0.6
 
