@@ -74,8 +74,7 @@ class EmailAppender extends Appender {
   EmailAppender() : super();
 
   /// Factory constructor for configuration-based creation
-  static Future<EmailAppender> fromConfig(Map<String, dynamic> config,
-      {bool test = false, DateTime? date}) async {
+  static Future<EmailAppender> fromConfig(Map<String, dynamic> config, {bool test = false, DateTime? date}) async {
     final appender = EmailAppender()
       ..test = test
       ..created = date ?? DateTime.now();
@@ -106,8 +105,7 @@ class EmailAppender extends Appender {
     // Handle toEmails as either String or List
     final toEmailsConfig = config['toEmails'];
     if (toEmailsConfig is String) {
-      appender.toEmails =
-          toEmailsConfig.split(',').map((e) => e.trim()).toList();
+      appender.toEmails = toEmailsConfig.split(',').map((e) => e.trim()).toList();
     } else if (toEmailsConfig is List) {
       appender.toEmails = List<String>.from(toEmailsConfig);
     } else {
@@ -169,11 +167,9 @@ class EmailAppender extends Appender {
       appender.batchSize = config['batchSize'];
     }
     if (config.containsKey('batchIntervalMinutes')) {
-      appender.batchInterval =
-          Duration(minutes: config['batchIntervalMinutes']);
+      appender.batchInterval = Duration(minutes: config['batchIntervalMinutes']);
     } else if (config.containsKey('batchIntervalSeconds')) {
-      appender.batchInterval =
-          Duration(seconds: config['batchIntervalSeconds']);
+      appender.batchInterval = Duration(seconds: config['batchIntervalSeconds']);
     }
 
     // Rate limiting
@@ -213,15 +209,13 @@ class EmailAppender extends Appender {
 
   /// Synchronous factory - throws since email requires async
   factory EmailAppender.fromConfigSync(Map<String, dynamic> config) {
-    throw UnsupportedError(
-        'EmailAppender requires async initialization. Use fromConfig() or builder().build()');
+    throw UnsupportedError('EmailAppender requires async initialization. Use fromConfig() or builder().build()');
   }
 
   /// Initialize the appender
   Future<void> initialize() async {
     if (test) {
-      Logger.getSelfLogger()?.logDebug(
-          'EmailAppender in test mode - skipping SMTP and timer initialization');
+      Logger.getSelfLogger()?.logInfo('EmailAppender in test mode - skipping SMTP and timer initialization');
       return;
     }
 
@@ -234,7 +228,7 @@ class EmailAppender extends Appender {
     // Start rate limit cleanup timer
     _startRateLimitCleanupTimer();
 
-    Logger.getSelfLogger()?.logDebug('EmailAppender initialized: $this');
+    Logger.getSelfLogger()?.logInfo('EmailAppender initialized: $this');
   }
 
   void _setupSmtpServer() {
@@ -266,8 +260,7 @@ class EmailAppender extends Appender {
         _sendEmail();
       }
     });
-    Logger.getSelfLogger()
-        ?.logDebug('Batch timer started with interval: $batchInterval');
+    Logger.getSelfLogger()?.logDebug('Batch timer started with interval: $batchInterval');
   }
 
   void _startRateLimitCleanupTimer() {
@@ -341,9 +334,7 @@ class EmailAppender extends Appender {
 
     // Check if we should send immediately for errors
     if (sendImmediatelyOnError && logRecord.level.index >= Level.ERROR.index) {
-      final errorCount = _logBuffer
-          .where((log) => log.level.index >= Level.ERROR.index)
-          .length;
+      final errorCount = _logBuffer.where((log) => log.level.index >= Level.ERROR.index).length;
 
       if (errorCount >= immediateErrorThreshold) {
         _sendEmail();
@@ -360,8 +351,7 @@ class EmailAppender extends Appender {
 
     // Check rate limit
     if (!_isWithinRateLimit()) {
-      Logger.getSelfLogger()?.logWarn(
-          'Email rate limit reached. Skipping send of ${_logBuffer.length} logs');
+      Logger.getSelfLogger()?.logWarn('Email rate limit reached. Skipping send of ${_logBuffer.length} logs');
       return;
     }
 
@@ -370,8 +360,8 @@ class EmailAppender extends Appender {
     _logBuffer.clear();
 
     if (test) {
-      Logger.getSelfLogger()?.logDebug(
-          'Test mode: Would send email with ${logs.length} logs to ${toEmails.join(", ")}');
+      Logger.getSelfLogger()
+          ?.logDebug('Test mode: Would send email with ${logs.length} logs to ${toEmails.join(", ")}');
       _successfulSends++;
       _lastSendTime = DateTime.now();
       return;
@@ -386,8 +376,7 @@ class EmailAppender extends Appender {
       _sentTimestamps.add(DateTime.now());
       _lastSendTime = DateTime.now();
 
-      Logger.getSelfLogger()
-          ?.logDebug('Successfully sent email with ${logs.length} log records');
+      Logger.getSelfLogger()?.logInfo('Sent email with ${logs.length} log records');
     } catch (e) {
       _failedSends++;
       Logger.getSelfLogger()?.logError('Failed to send email: $e');
@@ -404,8 +393,7 @@ class EmailAppender extends Appender {
     final body = sendAsHtml ? _generateHtmlBody(logs) : _generateTextBody(logs);
 
     final message = Message()
-      ..from =
-          fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
+      ..from = fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
       ..recipients.addAll(toEmails.map((e) => Address(e)))
       ..subject = subject;
 
@@ -432,9 +420,7 @@ class EmailAppender extends Appender {
   }
 
   String _generateSubject(List<LogRecord> logs) {
-    final highestLevel = logs
-        .map((log) => log.level)
-        .reduce((a, b) => a.index > b.index ? a : b);
+    final highestLevel = logs.map((log) => log.level).reduce((a, b) => a.index > b.index ? a : b);
 
     final hostname = includeHostname ? ' - ${_getHostname()}' : '';
     final levelStr = highestLevel.name;
@@ -542,12 +528,10 @@ class EmailAppender extends Appender {
       }
 
       // Sort levels by severity
-      final sortedLevels = groupedLogs.keys.toList()
-        ..sort((a, b) => b.index.compareTo(a.index));
+      final sortedLevels = groupedLogs.keys.toList()..sort((a, b) => b.index.compareTo(a.index));
 
       for (var level in sortedLevels) {
-        buffer
-            .writeln('<h3>${level.name} (${groupedLogs[level]!.length})</h3>');
+        buffer.writeln('<h3>${level.name} (${groupedLogs[level]!.length})</h3>');
         for (var log in groupedLogs[level]!) {
           _writeHtmlLogEntry(buffer, log);
         }
@@ -576,21 +560,18 @@ class EmailAppender extends Appender {
 
     buffer.writeln('<div class="log-entry $levelClass">');
     buffer.writeln('<div>');
-    buffer.writeln(
-        '<span class="level $levelColorClass">${log.level.name}</span>');
+    buffer.writeln('<span class="level $levelColorClass">${log.level.name}</span>');
     buffer.writeln('<span class="timestamp">${log.time}</span>');
     if (log.loggerName != null) {
       buffer.writeln(' - <span class="logger">${log.loggerName}</span>');
     }
     buffer.writeln('</div>');
 
-    buffer.writeln(
-        '<div class="message">${_escapeHtml(log.message.toString())}</div>');
+    buffer.writeln('<div class="message">${_escapeHtml(log.message.toString())}</div>');
 
     if (log.error != null) {
       buffer.writeln('<div class="error">');
-      buffer.writeln(
-          '<strong>Error:</strong> ${_escapeHtml(log.error.toString())}');
+      buffer.writeln('<strong>Error:</strong> ${_escapeHtml(log.error.toString())}');
       buffer.writeln('</div>');
     }
 
@@ -638,8 +619,7 @@ class EmailAppender extends Appender {
         groupedLogs.putIfAbsent(log.level, () => []).add(log);
       }
 
-      final sortedLevels = groupedLogs.keys.toList()
-        ..sort((a, b) => b.index.compareTo(a.index));
+      final sortedLevels = groupedLogs.keys.toList()..sort((a, b) => b.index.compareTo(a.index));
 
       for (var level in sortedLevels) {
         buffer.writeln('${level.name} (${groupedLogs[level]!.length} entries)');
@@ -663,8 +643,7 @@ class EmailAppender extends Appender {
   }
 
   void _writeTextLogEntry(StringBuffer buffer, LogRecord log) {
-    buffer.writeln(
-        '[${log.time}] [${log.level.name}] ${log.loggerName ?? ''}: ${log.message}');
+    buffer.writeln('[${log.time}] [${log.level.name}] ${log.loggerName ?? ''}: ${log.message}');
 
     if (log.error != null) {
       buffer.writeln('  Error: ${log.error}');
@@ -682,8 +661,7 @@ class EmailAppender extends Appender {
         .replaceAll('{{hostname}}', _getHostname())
         .replaceAll('{{timestamp}}', DateTime.now().toString())
         .replaceAll('{{logCount}}', logs.length.toString())
-        .replaceAll('{{logs}}',
-            isHtml ? _generateHtmlLogList(logs) : _generateTextLogList(logs));
+        .replaceAll('{{logs}}', isHtml ? _generateHtmlLogList(logs) : _generateTextLogList(logs));
   }
 
   String _generateHtmlLogList(List<LogRecord> logs) {

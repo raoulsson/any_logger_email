@@ -46,9 +46,7 @@ class EmailAppenderBuilder {
 
   /// Sets the SMTP server configuration.
   EmailAppenderBuilder withSmtp(String host, int port,
-      {bool ssl = false,
-      bool allowInsecure = false,
-      bool ignoreBadCertificate = false}) {
+      {bool ssl = false, bool allowInsecure = false, bool ignoreBadCertificate = false}) {
     _config['smtpHost'] = host;
     _config['smtpPort'] = port;
     _config['ssl'] = ssl;
