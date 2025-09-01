@@ -232,8 +232,6 @@ Future<void> example4_builder() async {
       .withCc(['manager@example.com'])
       .withLevel(Level.ERROR)
       .withSubjectPrefix('[APP ERROR]')
-      .withBatchSize(10)
-      .withBatchIntervalMinutes(2)
       .withHtmlFormat(true)
       .withStackTraces(true)
       .withMetadata(true)
@@ -247,13 +245,12 @@ Future<void> example4_builder() async {
   print('  From: ${appender.fromEmail}');
   print('  To: ${appender.toEmails.join(", ")}');
   print('  Level: ${appender.level}');
-  print('  Batch size: ${appender.batchSize}');
   print('  Batch interval: ${appender.batchInterval}');
   print('  HTML format: ${appender.sendAsHtml}');
 
   // Using presets
   final gmailAppender = await emailAppenderBuilder()
-      .withGmailPreset('user@gmail.com', 'app-password')
+      .withGmailAppPassword('user@gmail.com', 'app-password')
       .withTo(['alerts@example.com'])
       .withCriticalAlertPreset()
       .build(test: true);
@@ -261,7 +258,6 @@ Future<void> example4_builder() async {
   print('\nGmail with critical alert preset:');
   print('  SMTP: ${gmailAppender.smtpHost}:${gmailAppender.smtpPort}');
   print('  Subject prefix: ${gmailAppender.subjectPrefix}');
-  print('  Batch size: ${gmailAppender.batchSize}');
   print('  Send immediately on error: ${gmailAppender.sendImmediatelyOnError}');
 
   await appender.dispose();
@@ -301,7 +297,8 @@ Future<void> example5_loggerFactory() async {
   print('  Appenders: ${appenders.length}');
   for (var i = 0; i < appenders.length; i++) {
     final appender = appenders[i];
-    print('    ${i + 1}. Type: ${appender['type']}, Level: ${appender['level']}');
+    print(
+        '    ${i + 1}. Type: ${appender['type']}, Level: ${appender['level']}');
   }
 
   // Initialize in test mode to avoid actual email connections
@@ -322,13 +319,13 @@ Future<void> example5_loggerFactory() async {
   await LoggerFactory.builder()
       .replaceAll()
       .console(level: Level.INFO)
-      .gmail(
-        username: 'app@gmail.com',
+      .gmailWithAppPassword(
+        fromEmail: 'app@gmail.com',
         appPassword: 'app-password',
         toEmails: ['alerts@example.com'],
-        level: Level.ERROR,
+        level: Level.WARN,
         subjectPrefix: '[MyApp]',
-        batchSize: 5,
+        rotationCycle: RotationCycle.HOURLY,
       )
       .build(test: true);
 

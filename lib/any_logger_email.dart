@@ -28,14 +28,16 @@ class AnyLoggerEmailExtension {
   static void register() {
     if (_registered) return;
 
-    AppenderRegistry.instance.register(EmailAppender.appenderName, (config, {test = false, date}) async {
+    AppenderRegistry.instance.register(EmailAppender.appenderName, (config,
+        {test = false, date}) async {
       return await EmailAppender.fromConfig(config, test: test, date: date);
     });
 
     _registered = true;
 
     // Log registration if self-debugging is enabled
-    Logger.getSelfLogger()?.logDebug('EMAIL appender registered with AppenderRegistry');
+    Logger.getSelfLogger()
+        ?.logDebug('EMAIL appender registered with AppenderRegistry');
   }
 
   /// Unregisters the Email appender (mainly for testing).

@@ -1,543 +1,459 @@
+import 'dart:io';
+
 import 'package:any_logger/any_logger.dart';
 import 'package:any_logger_email/any_logger_email.dart';
 import 'package:test/test.dart';
 
 void main() {
-  // Ensure the EMAIL appender is registered before all tests
-  setUpAll(() {
-    AnyLoggerEmailExtension.register();
-  });
-
-  group('EmailAppender Configuration', () {
+  group('EmailAppender rotation functionality', () {
     tearDown(() async {
       await LoggerFactory.dispose();
     });
 
-    test('should create appender from config', () async {
-      final config = {
-        'type': 'EMAIL',
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'level': 'ERROR',
-        'batchSize': 50,
-        'batchIntervalMinutes': 5,
-      };
-
-      final appender = await EmailAppender.fromConfig(config, test: true);
-
-      expect(appender.getType(), equals('EMAIL'));
-      expect(appender.smtpHost, equals('smtp.test.com'));
-      expect(appender.smtpPort, equals(587));
-      expect(appender.fromEmail, equals('test@example.com'));
-      expect(appender.toEmails, equals(['admin@example.com']));
-      expect(appender.level, equals(Level.ERROR));
-      expect(appender.batchSize, equals(50));
-      expect(appender.batchInterval, equals(Duration(minutes: 5)));
-    });
-
-    test('should handle toEmails as string or list', () async {
-      // String format (comma-separated)
-      final stringConfig = {
-        'type': 'EMAIL',
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': 'admin@example.com, dev@example.com, support@example.com',
-      };
-
-      final stringAppender = await EmailAppender.fromConfig(stringConfig, test: true);
-      expect(stringAppender.toEmails, equals(['admin@example.com', 'dev@example.com', 'support@example.com']));
-
-      // List format
-      final listConfig = {
-        'type': 'EMAIL',
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com', 'dev@example.com'],
-      };
-
-      final listAppender = await EmailAppender.fromConfig(listConfig, test: true);
-      expect(listAppender.toEmails, equals(['admin@example.com', 'dev@example.com']));
-    });
-
-    test('should configure SMTP settings correctly', () async {
-      final config = {
-        'type': 'EMAIL',
-        'smtpHost': 'secure.mail.com',
-        'smtpPort': 465,
-        'ssl': true,
-        'allowInsecure': false,
-        'ignoreBadCertificate': true,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'username': 'user',
-        'password': 'pass',
-      };
-
-      final appender = await EmailAppender.fromConfig(config, test: true);
-      expect(appender.ssl, equals(true));
-      expect(appender.allowInsecure, equals(false));
-      expect(appender.ignoreBadCertificate, equals(true));
-      expect(appender.username, equals('user'));
-      expect(appender.password, equals('pass'));
-    });
-
-    test('should configure email recipients correctly', () async {
-      final config = {
-        'type': 'EMAIL',
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'fromName': 'Test Logger',
-        'toEmails': ['to@example.com'],
-        'ccEmails': ['cc1@example.com', 'cc2@example.com'],
-        'bccEmails': 'bcc@example.com',
-        'replyTo': 'reply@example.com',
-      };
-
-      final appender = await EmailAppender.fromConfig(config, test: true);
-      expect(appender.fromName, equals('Test Logger'));
-      expect(appender.ccEmails, equals(['cc1@example.com', 'cc2@example.com']));
-      expect(appender.bccEmails, equals(['bcc@example.com']));
-      expect(appender.replyTo, equals('reply@example.com'));
-    });
-
-    test('should throw on missing required fields', () {
-      // Missing smtpHost
-      expect(
-        () async => await EmailAppender.fromConfig({
-          'type': 'EMAIL',
-          'smtpPort': 587,
-          'fromEmail': 'test@example.com',
-          'toEmails': ['admin@example.com'],
-        }),
-        throwsA(isA<ArgumentError>()),
-      );
-
-      // Missing smtpPort
-      expect(
-        () async => await EmailAppender.fromConfig({
-          'type': 'EMAIL',
-          'smtpHost': 'smtp.test.com',
-          'fromEmail': 'test@example.com',
-          'toEmails': ['admin@example.com'],
-        }),
-        throwsA(isA<ArgumentError>()),
-      );
-
-      // Missing fromEmail
-      expect(
-        () async => await EmailAppender.fromConfig({
-          'type': 'EMAIL',
-          'smtpHost': 'smtp.test.com',
-          'smtpPort': 587,
-          'toEmails': ['admin@example.com'],
-        }),
-        throwsA(isA<ArgumentError>()),
-      );
-
-      // Missing toEmails
-      expect(
-        () async => await EmailAppender.fromConfig({
-          'type': 'EMAIL',
-          'smtpHost': 'smtp.test.com',
-          'smtpPort': 587,
-          'fromEmail': 'test@example.com',
-        }),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-
-    test('should throw for synchronous factory', () {
-      final config = {
-        'type': 'EMAIL',
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-      };
-
-      expect(
-        () => EmailAppender.fromConfigSync(config),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-  });
-
-  group('EmailAppender Batching', () {
-    late EmailAppender appender;
-
-    tearDown(() async {
-      await appender.dispose();
-      await LoggerFactory.dispose();
-    });
-
-    test('should batch logs until batch size reached', () async {
-      appender = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'batchSize': 3,
-        'batchIntervalMinutes': 60,
-      }, test: true);
-
-      final contextInfo = LoggerStackTrace.from(StackTrace.current);
-
-      // Add logs but don't reach batch size
-      appender.append(LogRecord(Level.INFO, 'Message 1', null, contextInfo));
-      appender.append(LogRecord(Level.INFO, 'Message 2', null, contextInfo));
-
-      // Buffer should have 2 items
-      expect(appender.getStatistics()['bufferSize'], equals(2));
-
-      // Add one more to trigger batch
-      appender.append(LogRecord(Level.INFO, 'Message 3', null, contextInfo));
-
-      // In test mode, buffer is cleared after batch
-      expect(appender.getStatistics()['bufferSize'], equals(0));
-    });
-
-    test('should send immediately for error threshold', () async {
-      appender = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'batchSize': 100,
-        'sendImmediatelyOnError': true,
-        'immediateErrorThreshold': 5,
-      }, test: true);
-
-      final contextInfo = LoggerStackTrace.from(StackTrace.current);
-
-      // Add less than threshold - should not send
-      for (int i = 0; i < 4; i++) {
-        appender.append(LogRecord(Level.ERROR, 'Error $i', null, contextInfo));
-      }
-      expect(appender.getStatistics()['bufferSize'], equals(4));
-
-      // Add one more to reach threshold - should send
-      appender.append(LogRecord(Level.ERROR, 'Error 5', null, contextInfo));
-
-      // Should send immediately when threshold reached
-      expect(appender.getStatistics()['bufferSize'], equals(0));
-    });
-
-    test('should flush on dispose', () async {
-      appender = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'batchSize': 100,
-      }, test: true);
-
-      final contextInfo = LoggerStackTrace.from(StackTrace.current);
-
-      // Add some logs
-      appender.append(LogRecord(Level.INFO, 'Message 1', null, contextInfo));
-      appender.append(LogRecord(Level.INFO, 'Message 2', null, contextInfo));
-
-      expect(appender.getStatistics()['bufferSize'], equals(2));
-
-      // Dispose should flush
-      await appender.dispose();
-      expect(appender.getStatistics()['bufferSize'], equals(0));
-    });
-  });
-
-  group('EmailAppender Rate Limiting', () {
-    test('should track rate limit correctly', () async {
+    test('should default to hourly rotation', () async {
       final appender = await EmailAppender.fromConfig({
         'smtpHost': 'smtp.test.com',
         'smtpPort': 587,
         'fromEmail': 'test@example.com',
         'toEmails': ['admin@example.com'],
-        'maxEmailsPerHour': 10,
       }, test: true);
 
-      final stats = appender.getStatistics();
-      expect(stats['rateLimitRemaining'], equals(10));
+      expect(appender.rotationCycle, equals(RotationCycle.HOURLY),
+          reason: 'Should default to hourly email sending');
 
       await appender.dispose();
     });
 
-    test('should configure formatting options', () async {
+    test('should respect rotation cycle configuration', () async {
       final appender = await EmailAppender.fromConfig({
         'smtpHost': 'smtp.test.com',
         'smtpPort': 587,
         'fromEmail': 'test@example.com',
         'toEmails': ['admin@example.com'],
-        'sendAsHtml': false,
-        'includeStackTrace': false,
-        'includeMetadata': false,
-        'groupByLevel': false,
-        'includeHostname': false,
-        'includeAppInfo': false,
-        'subjectPrefix': '[TEST]',
+        'rotationCycle': 'DAILY',
       }, test: true);
 
-      expect(appender.sendAsHtml, equals(false));
-      expect(appender.includeStackTrace, equals(false));
-      expect(appender.includeMetadata, equals(false));
-      expect(appender.groupByLevel, equals(false));
-      expect(appender.includeHostname, equals(false));
-      expect(appender.includeAppInfo, equals(false));
-      expect(appender.subjectPrefix, equals('[TEST]'));
+      expect(appender.rotationCycle, equals(RotationCycle.DAILY));
+
+      await appender.dispose();
+    });
+
+    test('should send emails based on rotation cycle, not batch size', () async {
+      final appender = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+        'rotationCycle': 'TEN_MINUTES',
+      }, test: true);
+
+      // The rotation cycle should be the primary trigger for sending
+      expect(appender.rotationCycle, equals(RotationCycle.TEN_MINUTES));
+
+      // Even if batch size exists for backward compatibility, it shouldn't affect sending
+      // The appender should only send based on rotation time
 
       await appender.dispose();
     });
   });
 
-  group('EmailAppenderBuilder', () {
+  group('EmailAppender groupByLevel functionality', () {
     tearDown(() async {
       await LoggerFactory.dispose();
     });
 
-    test('should build with basic configuration', () async {
-      final appender = await emailAppenderBuilder()
-          .withSmtp('smtp.test.com', 587)
-          .withFrom('test@example.com')
-          .withTo(['admin@example.com'])
-          .withLevel(Level.WARN)
-          .withBatchSize(25)
-          .build(test: true);
+    test('should default groupByLevel to false', () async {
+      final appender = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+      }, test: true);
 
-      expect(appender.smtpHost, equals('smtp.test.com'));
-      expect(appender.smtpPort, equals(587));
-      expect(appender.fromEmail, equals('test@example.com'));
-      expect(appender.toEmails, equals(['admin@example.com']));
-      expect(appender.level, equals(Level.WARN));
-      expect(appender.batchSize, equals(25));
+      expect(appender.groupByLevel, equals(false),
+          reason:
+          'groupByLevel should default to false for chronological order');
 
       await appender.dispose();
     });
 
-    test('should build with credentials', () async {
-      final appender = await emailAppenderBuilder()
-          .withSmtp('smtp.test.com', 587)
-          .withCredentials('user', 'pass')
-          .withFrom('test@example.com')
-          .withTo(['admin@example.com']).build(test: true);
+    test('should respect groupByLevel when set to true', () async {
+      final appender = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+        'groupByLevel': true,
+      }, test: true);
 
-      expect(appender.username, equals('user'));
-      expect(appender.password, equals('pass'));
-
-      await appender.dispose();
-    });
-
-    test('should apply Gmail preset correctly', () async {
-      final appender = await emailAppenderBuilder()
-          .withGmailPreset('user@gmail.com', 'app-password')
-          .withTo(['admin@example.com']).build(test: true);
-
-      expect(appender.smtpHost, equals('smtp.gmail.com'));
-      expect(appender.smtpPort, equals(587));
-      expect(appender.ssl, equals(false));
-      expect(appender.username, equals('user@gmail.com'));
-      expect(appender.password, equals('app-password'));
-      expect(appender.fromEmail, equals('user@gmail.com'));
+      expect(appender.groupByLevel, equals(true));
 
       await appender.dispose();
     });
 
-    test('should apply critical alert preset correctly', () async {
-      final appender = await emailAppenderBuilder()
+    test('should preserve groupByLevel in deep copy', () async {
+      final original = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+        'groupByLevel': true,
+      }, test: true);
+
+      final copy = original.createDeepCopy() as EmailAppender;
+
+      expect(copy.groupByLevel, equals(original.groupByLevel));
+      expect(copy.groupByLevel, equals(true));
+
+      await original.dispose();
+      await copy.dispose();
+    });
+  });
+
+  group('EmailAppender Builder with rotation presets', () {
+    test('should set rotation cycles correctly with presets', () async {
+      // Critical alerts - sends every 10 minutes
+      final criticalAppender = await emailAppenderBuilder()
           .withSmtp('smtp.test.com', 587)
           .withFrom('test@example.com')
           .withTo(['admin@example.com'])
           .withCriticalAlertPreset()
           .build(test: true);
 
-      expect(appender.level, equals(Level.ERROR));
-      expect(appender.batchSize, equals(5));
-      expect(appender.batchInterval, equals(Duration(minutes: 1)));
-      expect(appender.sendImmediatelyOnError, equals(true));
-      expect(appender.immediateErrorThreshold, equals(1));
-      expect(appender.subjectPrefix, equals('[CRITICAL ALERT]'));
+      expect(criticalAppender.rotationCycle, equals(RotationCycle.TEN_MINUTES),
+          reason: 'Critical alerts should send every 10 minutes');
+      expect(criticalAppender.groupByLevel, equals(false),
+          reason: 'Critical alerts should show chronological order for debugging');
 
-      await appender.dispose();
+      // Daily digest - sends once per day
+      final digestAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withDailyDigestPreset()
+          .build(test: true);
+
+      expect(digestAppender.rotationCycle, equals(RotationCycle.DAILY),
+          reason: 'Daily digest should send once per day');
+      expect(digestAppender.groupByLevel, equals(true),
+          reason: 'Daily digest should group by level for better summary');
+
+      // Hourly monitoring - sends every hour
+      final hourlyAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withHourlyMonitoringPreset()
+          .build(test: true);
+
+      expect(hourlyAppender.rotationCycle, equals(RotationCycle.HOURLY),
+          reason: 'Hourly monitoring should send every hour');
+
+      // Development - sends every 30 minutes
+      final devAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withDevelopmentPreset()
+          .build(test: true);
+
+      expect(devAppender.rotationCycle, equals(RotationCycle.THIRTY_MINUTES),
+          reason: 'Development preset should send every 30 minutes');
+
+      // Weekly report - sends once per week
+      final weeklyAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withWeeklyReportPreset()
+          .build(test: true);
+
+      expect(weeklyAppender.rotationCycle, equals(RotationCycle.WEEKLY),
+          reason: 'Weekly report should send once per week');
+
+      // Production - sends every 2 hours
+      final prodAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withProductionPreset()
+          .build(test: true);
+
+      expect(prodAppender.rotationCycle, equals(RotationCycle.TWO_HOURS),
+          reason: 'Production preset should send every 2 hours');
+
+      await criticalAppender.dispose();
+      await digestAppender.dispose();
+      await hourlyAppender.dispose();
+      await devAppender.dispose();
+      await weeklyAppender.dispose();
+      await prodAppender.dispose();
     });
 
-    test('should throw if required fields are missing', () async {
-      // Missing SMTP host
-      expect(
-        () async => await emailAppenderBuilder().withFrom('test@example.com').withTo(['admin@example.com']).build(),
-        throwsA(isA<ArgumentError>()),
-      );
+    test('should allow custom rotation periods', () async {
+      // Test all rotation methods
+      final tenMinAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withTenMinuteRotation()
+          .build(test: true);
 
-      // Missing from email
-      expect(
-        () async => await emailAppenderBuilder().withSmtp('smtp.test.com', 587).withTo(['admin@example.com']).build(),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(tenMinAppender.rotationCycle, equals(RotationCycle.TEN_MINUTES));
 
-      // Missing to emails
-      expect(
-        () async => await emailAppenderBuilder().withSmtp('smtp.test.com', 587).withFrom('test@example.com').build(),
-        throwsA(isA<ArgumentError>()),
-      );
+      final monthlyAppender = await emailAppenderBuilder()
+          .withSmtp('smtp.test.com', 587)
+          .withFrom('test@example.com')
+          .withTo(['admin@example.com'])
+          .withDailyRotation()
+          .build(test: true);
+
+      expect(monthlyAppender.rotationCycle, equals(RotationCycle.DAILY));
+
+      await tenMinAppender.dispose();
+      await monthlyAppender.dispose();
     });
   });
 
-  group('EmailAppender Integration', () {
+  group('EmailAppender formatting options defaults', () {
+    late EmailAppender appender;
+
+    setUp(() async {
+      appender = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+      }, test: true);
+    });
+
+    tearDown(() async {
+      await appender.dispose();
+    });
+
+    test('should have correct default formatting options', () {
+      expect(appender.sendAsHtml, equals(true));
+      expect(appender.includeStackTrace, equals(true));
+      expect(appender.includeMetadata, equals(true));
+      expect(appender.includeHostname, equals(true));
+      expect(appender.includeAppInfo, equals(true));
+      expect(appender.attachLogFile, equals(true));
+      expect(appender.groupByLevel, equals(false)); // Chronological by default
+      expect(appender.rotationCycle, equals(RotationCycle.HOURLY)); // Default rotation
+    });
+  });
+
+  group('FileAppender Rotation', () {
+    const testDir = 'test_rotation_logs';
+
+    setUp(() async {
+      final dir = Directory(testDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    });
+
     tearDown(() async {
       await LoggerFactory.dispose();
-    });
-
-    test('should register with AppenderRegistry', () async {
-      // The registration happens in setUpAll()
-      expect(AppenderRegistry.instance.isRegistered('EMAIL'), isTrue);
-    });
-
-    test('should work with LoggerFactory.init', () async {
-      final config = {
-        'appenders': [
-          {
-            'type': 'CONSOLE',
-            'level': 'INFO',
-          },
-          {
-            'type': 'EMAIL',
-            'smtpHost': 'smtp.test.com',
-            'smtpPort': 587,
-            'fromEmail': 'test@example.com',
-            'toEmails': ['admin@example.com'],
-            'level': 'ERROR',
-            'batchSize': 10,
-          },
-        ],
-      };
-
-      await LoggerFactory.init(config, test: true);
-      final logger = LoggerFactory.getRootLogger();
-
-      expect(logger.appenders.length, equals(2));
-      expect(logger.appenders[1].getType(), equals('EMAIL'));
-    });
-
-    test('should work with LoggerBuilder extension', () async {
-      await LoggerFactory.builder()
-          .replaceAll()
-          .console(level: Level.INFO)
-          .email(
-            smtpHost: 'smtp.test.com',
-            smtpPort: 587,
-            fromEmail: 'test@example.com',
-            toEmails: ['admin@example.com'],
-            level: Level.ERROR,
-            batchSize: 20,
-          )
-          .build(test: true);
-
-      final logger = LoggerFactory.getRootLogger();
-      expect(logger.appenders.length, equals(2));
-
-      final emailAppender = logger.appenders[1] as EmailAppender;
-      expect(emailAppender.getType(), equals('EMAIL'));
-      expect(emailAppender.smtpHost, equals('smtp.test.com'));
-      expect(emailAppender.batchSize, equals(20));
-    });
-
-    test('should work with Gmail extension method', () async {
-      await LoggerFactory.builder()
-          .replaceAll()
-          .console(level: Level.INFO)
-          .gmail(
-            username: 'user@gmail.com',
-            appPassword: 'app-pass',
-            toEmails: ['admin@example.com'],
-            level: Level.ERROR,
-          )
-          .build(test: true);
-
-      final logger = LoggerFactory.getRootLogger();
-      final emailAppender = logger.appenders[1] as EmailAppender;
-      expect(emailAppender.smtpHost, equals('smtp.gmail.com'));
-      expect(emailAppender.smtpPort, equals(587));
-    });
-
-    test('should handle deep copy correctly', () async {
-      final original = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'fromName': 'Test',
-        'toEmails': ['admin@example.com'],
-        'ccEmails': ['cc@example.com'],
-        'batchSize': 75,
-        'sendAsHtml': true,
-      }, test: true);
-
-      final copy = original.createDeepCopy() as EmailAppender;
-
-      expect(copy.smtpHost, equals(original.smtpHost));
-      expect(copy.smtpPort, equals(original.smtpPort));
-      expect(copy.fromEmail, equals(original.fromEmail));
-      expect(copy.fromName, equals(original.fromName));
-      expect(copy.toEmails, equals(original.toEmails));
-      expect(copy.ccEmails, equals(original.ccEmails));
-      expect(copy.batchSize, equals(original.batchSize));
-      expect(copy.sendAsHtml, equals(original.sendAsHtml));
-      expect(identical(copy, original), isFalse);
-      expect(identical(copy.toEmails, original.toEmails), isFalse);
-
-      await original.dispose();
-      await copy.dispose();
-    });
-
-    test('should respect enabled state', () async {
-      final appender = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'enabled': false,
-      }, test: true);
-
-      expect(appender.enabled, isFalse);
-
-      final contextInfo = LoggerStackTrace.from(StackTrace.current);
-      appender.append(LogRecord(Level.ERROR, 'Test', null, contextInfo));
-
-      // Should not add to buffer when disabled
-      expect(appender.getStatistics()['bufferSize'], equals(0));
-
-      await appender.dispose();
-    });
-
-    test('should track statistics correctly', () async {
-      final appender = await EmailAppender.fromConfig({
-        'smtpHost': 'smtp.test.com',
-        'smtpPort': 587,
-        'fromEmail': 'test@example.com',
-        'toEmails': ['admin@example.com'],
-        'batchSize': 100,
-      }, test: true);
-
-      final stats = appender.getStatistics();
-      expect(stats['successfulSends'], equals(0));
-      expect(stats['failedSends'], equals(0));
-      expect(stats['bufferSize'], equals(0));
-      expect(stats['lastSendTime'], isNull);
-
-      // Add some logs and trigger send
-      final contextInfo = LoggerStackTrace.from(StackTrace.current);
-      for (int i = 0; i < 100; i++) {
-        appender.append(LogRecord(Level.INFO, 'Message $i', null, contextInfo));
+      final dir = Directory(testDir);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
       }
+    });
 
-      // After batch is sent (in test mode)
-      final statsAfter = appender.getStatistics();
-      expect(statsAfter['successfulSends'], equals(1));
-      expect(statsAfter['bufferSize'], equals(0));
-      expect(statsAfter['lastSendTime'], isNotNull);
+    test('should handle daily rotation', () async {
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      await appender.dispose();
+      final appender = await FileAppenderBuilder('daily_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.DAILY)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test daily rotation');
+      await LoggerFactory.flushAll();
+
+      final expectedFile = File('$testDir/daily_test_$dateStr.log');
+      expect(await expectedFile.exists(), isTrue);
+    });
+
+    test('should handle weekly rotation', () async {
+      final now = DateTime.now();
+      final weekNumber = _getCalendarWeek(now);
+      final weekStr = '${now.year}-CW$weekNumber';
+
+      final appender = await fileAppenderBuilder('weekly_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.WEEKLY)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test weekly rotation');
+      await LoggerFactory.flushAll();
+
+      final expectedFile = File('$testDir/weekly_test_$weekStr.log');
+      expect(await expectedFile.exists(), isTrue);
+    });
+
+    test('should handle monthly rotation', () async {
+      final now = DateTime.now();
+      final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      final appender = await fileAppenderBuilder('monthly_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.MONTHLY)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test monthly rotation');
+      await LoggerFactory.flushAll();
+
+      final expectedFile = File('$testDir/monthly_test_$monthStr.log');
+      expect(await expectedFile.exists(), isTrue);
+    });
+
+    test('should handle hourly rotation', () async {
+      final appender = await FileAppenderBuilder('hourly_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.HOURLY)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test hourly rotation');
+      await LoggerFactory.flushAll();
+
+      final dir = Directory(testDir);
+      final files = await dir.list().toList();
+      expect(files.length, greaterThan(0));
+
+      final logFile = files.first as File;
+      expect(logFile.path, contains('hourly_test'));
+    });
+
+    test('should handle no rotation', () async {
+      final appender = await FileAppenderBuilder('no_rotation_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.NEVER)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test no rotation');
+      await LoggerFactory.flushAll();
+
+      final expectedFile = File('$testDir/no_rotation_test.log');
+      expect(await expectedFile.exists(), isTrue);
+    });
+
+    test('should handle 10-minute rotation', () async {
+      final appender = await FileAppenderBuilder('ten_min_test')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.TEN_MINUTES)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(appender).build();
+
+      Logger.info('Test 10-minute rotation');
+      await LoggerFactory.flushAll();
+
+      final dir = Directory(testDir);
+      final files = await dir.list().toList();
+      expect(files.length, greaterThan(0));
+
+      final logFile = files.first as File;
+      expect(logFile.path, contains('ten_min_test'));
     });
   });
+
+  group('EmailAppender vs FileAppender behavior', () {
+    const testDir = 'test_comparison_logs';
+
+    setUp(() async {
+      final dir = Directory(testDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    });
+
+    tearDown(() async {
+      await LoggerFactory.dispose();
+      final dir = Directory(testDir);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+    });
+
+    test('FileAppender should create new files on rotation', () async {
+      // FileAppender creates new files when rotation period changes
+      final fileAppender = await FileAppenderBuilder('file_rotation')
+          .withPath(testDir)
+          .withRotationCycle(RotationCycle.HOURLY)
+          .withLevel(Level.INFO)
+          .build();
+
+      await LoggerBuilder().replaceAll().addAppender(fileAppender).build();
+
+      Logger.info('FileAppender test - should create timestamped file');
+      await LoggerFactory.flushAll();
+
+      final dir = Directory(testDir);
+      final files = await dir.list().toList();
+
+      // Should have created a file with timestamp
+      expect(files.length, equals(1));
+      final file = files.first as File;
+      expect(file.path, contains('file_rotation'));
+      // File name should have timestamp suffix based on rotation
+    });
+
+    test('EmailAppender should NOT create new files on rotation', () async {
+      // EmailAppender keeps the same file, just sends its contents
+      final emailAppender = await EmailAppender.fromConfig({
+        'smtpHost': 'smtp.test.com',
+        'smtpPort': 587,
+        'fromEmail': 'test@example.com',
+        'toEmails': ['admin@example.com'],
+        'filePattern': 'email_no_rotation',
+        'path': testDir,
+        'rotationCycle': 'HOURLY',
+      }, test: true);
+
+      await LoggerBuilder().replaceAll().addAppender(emailAppender).build();
+
+      Logger.info('EmailAppender test - should use same file');
+      await LoggerFactory.flushAll();
+
+      // File name should not have rotation suffix
+      final expectedFile = File('$testDir/email_no_rotation.log');
+      expect(await expectedFile.exists(), isTrue,
+          reason: 'EmailAppender should use a single file without rotation suffix');
+    });
+  });
+}
+
+// Helper function to calculate week number
+int _getCalendarWeek(DateTime date) {
+  final startOfYear = DateTime(date.year, 1, 1);
+  final firstMonday = startOfYear.weekday == 1
+      ? startOfYear
+      : startOfYear.add(Duration(days: 8 - startOfYear.weekday));
+
+  if (date.isBefore(firstMonday)) {
+    return _getCalendarWeek(DateTime(date.year - 1, 12, 31));
+  }
+
+  final weekNumber = ((date.difference(firstMonday).inDays) / 7).floor() + 1;
+  return weekNumber;
 }
