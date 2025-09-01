@@ -38,7 +38,8 @@ void main() {
       await appender.dispose();
     });
 
-    test('should send emails based on rotation cycle, not batch size', () async {
+    test('should send emails based on rotation cycle, not batch size',
+        () async {
       final appender = await EmailAppender.fromConfig({
         'smtpHost': 'smtp.test.com',
         'smtpPort': 587,
@@ -72,7 +73,7 @@ void main() {
 
       expect(appender.groupByLevel, equals(false),
           reason:
-          'groupByLevel should default to false for chronological order');
+              'groupByLevel should default to false for chronological order');
 
       await appender.dispose();
     });
@@ -123,7 +124,8 @@ void main() {
       expect(criticalAppender.rotationCycle, equals(RotationCycle.TEN_MINUTES),
           reason: 'Critical alerts should send every 10 minutes');
       expect(criticalAppender.groupByLevel, equals(false),
-          reason: 'Critical alerts should show chronological order for debugging');
+          reason:
+              'Critical alerts should show chronological order for debugging');
 
       // Daily digest - sends once per day
       final digestAppender = await emailAppenderBuilder()
@@ -239,7 +241,8 @@ void main() {
       expect(appender.includeAppInfo, equals(true));
       expect(appender.attachLogFile, equals(true));
       expect(appender.groupByLevel, equals(false)); // Chronological by default
-      expect(appender.rotationCycle, equals(RotationCycle.HOURLY)); // Default rotation
+      expect(appender.rotationCycle,
+          equals(RotationCycle.HOURLY)); // Default rotation
     });
   });
 
@@ -438,7 +441,8 @@ void main() {
       // File name should not have rotation suffix
       final expectedFile = File('$testDir/email_no_rotation.log');
       expect(await expectedFile.exists(), isTrue,
-          reason: 'EmailAppender should use a single file without rotation suffix');
+          reason:
+              'EmailAppender should use a single file without rotation suffix');
     });
   });
 }

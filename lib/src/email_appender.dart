@@ -220,7 +220,8 @@ class EmailAppender extends FileAppender {
     final toEmailsConfig = config['toEmails'];
     if (toEmailsConfig is String) {
       // Check if it's a JSON string
-      appender.toEmails = toEmailsConfig.split(',').map((e) => e.trim()).toList();
+      appender.toEmails =
+          toEmailsConfig.split(',').map((e) => e.trim()).toList();
     } else if (toEmailsConfig is List) {
       appender.toEmails = List<String>.from(toEmailsConfig);
     } else {
@@ -229,9 +230,8 @@ class EmailAppender extends FileAppender {
 
     // Optional SMTP settings
     appender.username = config['username'];
-    appender.password = config['password'] ??
-        config['appPassword'] ??
-        config['app_password'];
+    appender.password =
+        config['password'] ?? config['appPassword'] ?? config['app_password'];
     appender.ssl = config['ssl'] ?? false;
     appender.allowInsecure = config['allowInsecure'] ?? false;
     appender.ignoreBadCertificate = config['ignoreBadCertificate'] ?? false;
@@ -317,15 +317,13 @@ class EmailAppender extends FileAppender {
         final fileSize = appender.file.lengthSync();
         if (fileSize > 0) {
           Logger.getSelfLogger()?.logInfo(
-              'Deleting existing log file on restart (${fileSize} bytes): ${appender.file.path}'
-          );
+              'Deleting existing log file on restart (${fileSize} bytes): ${appender.file.path}');
           appender.file.writeAsStringSync(''); // Clear the file
           Logger.getSelfLogger()?.logInfo('Log file cleared on restart');
         }
       } catch (e) {
-        Logger.getSelfLogger()?.logWarn(
-            'Failed to clear log file on restart: $e'
-        );
+        Logger.getSelfLogger()
+            ?.logWarn('Failed to clear log file on restart: $e');
       }
     }
 
@@ -443,8 +441,7 @@ class EmailAppender extends FileAppender {
       if (file.existsSync() && file.lengthSync() > 0) {
         await file.copy(swapFilePath);
         Logger.getSelfLogger()?.logDebug(
-            'Created swap file: $swapFilePath (${await swapFile.length()} bytes)'
-        );
+            'Created swap file: $swapFilePath (${await swapFile.length()} bytes)');
 
         // Step 3: Clear the main log file
         await file.writeAsString('');
@@ -459,20 +456,17 @@ class EmailAppender extends FileAppender {
         // Step 5: Send email from swap file WITH await to ensure completion
         try {
           await _sendSwapFile(swapFile);
-          Logger.getSelfLogger()?.logInfo(
-              'Successfully sent email from swap file'
-          );
+          Logger.getSelfLogger()
+              ?.logInfo('Successfully sent email from swap file');
         } catch (e) {
-          Logger.getSelfLogger()?.logError(
-              'Failed to send email from swap file: $e'
-          );
+          Logger.getSelfLogger()
+              ?.logError('Failed to send email from swap file: $e');
           // Don't delete swap file if send failed - keep for recovery
           rethrow;
         }
       } else {
-        Logger.getSelfLogger()?.logDebug(
-            'Log file empty or doesn\'t exist, skipping send'
-        );
+        Logger.getSelfLogger()
+            ?.logDebug('Log file empty or doesn\'t exist, skipping send');
       }
     } catch (e) {
       Logger.getSelfLogger()?.logError('Error during swap and send: $e');
@@ -591,7 +585,7 @@ class EmailAppender extends FileAppender {
 
     final message = Message()
       ..from =
-      fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
+          fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
       ..recipients.addAll(toEmails.map((e) => Address(e)))
       ..subject = subject;
 
@@ -990,9 +984,8 @@ class EmailAppender extends FileAppender {
     // Initialize on first check
     if (_lastRotationCheck == null) {
       _lastRotationCheck = now;
-      Logger.getSelfLogger()?.logDebug(
-          'EmailAppender: First check at ${now.toIso8601String()}'
-      );
+      Logger.getSelfLogger()
+          ?.logDebug('EmailAppender: First check at ${now.toIso8601String()}');
       return false;
     }
 
@@ -1002,8 +995,7 @@ class EmailAppender extends FileAppender {
       final shouldSend = _lastRotationCheck!.minute != now.minute;
       if (shouldSend) {
         Logger.getSelfLogger()?.logInfo(
-            'Test mode: Minute boundary crossed at ${now.minute}:${now.second}'
-        );
+            'Test mode: Minute boundary crossed at ${now.minute}:${now.second}');
       }
       return shouldSend;
     }
@@ -1013,7 +1005,7 @@ class EmailAppender extends FileAppender {
 
     switch (rotationCycle) {
       case RotationCycle.TEN_MINUTES:
-      // Check if we've crossed a 10-minute boundary (00, 10, 20, 30, 40, 50)
+        // Check if we've crossed a 10-minute boundary (00, 10, 20, 30, 40, 50)
         final lastBoundary = (_lastRotationCheck!.minute ~/ 10) * 10;
         final currentBoundary = (now.minute ~/ 10) * 10;
 
@@ -1021,19 +1013,18 @@ class EmailAppender extends FileAppender {
         // 1. The boundary minutes are different, OR
         // 2. We've crossed an hour/day boundary
         shouldSend = (lastBoundary != currentBoundary &&
-            now.difference(_lastRotationCheck!).inMinutes >= 1) ||
+                now.difference(_lastRotationCheck!).inMinutes >= 1) ||
             _lastRotationCheck!.hour != now.hour ||
             _lastRotationCheck!.day != now.day;
 
         if (shouldSend) {
           Logger.getSelfLogger()?.logInfo(
-              'Ten-minute boundary crossed: ${_lastRotationCheck!.minute} -> ${now.minute} (boundary: $currentBoundary)'
-          );
+              'Ten-minute boundary crossed: ${_lastRotationCheck!.minute} -> ${now.minute} (boundary: $currentBoundary)');
         }
         break;
 
       case RotationCycle.THIRTY_MINUTES:
-      // Check if we've crossed a 30-minute boundary (00, 30)
+        // Check if we've crossed a 30-minute boundary (00, 30)
         final lastHalf = _lastRotationCheck!.minute ~/ 30;
         final currentHalf = now.minute ~/ 30;
         shouldSend = lastHalf != currentHalf ||
@@ -1042,13 +1033,13 @@ class EmailAppender extends FileAppender {
         break;
 
       case RotationCycle.HOURLY:
-      // Check if we've crossed an hour boundary
+        // Check if we've crossed an hour boundary
         shouldSend = _lastRotationCheck!.hour != now.hour ||
             _lastRotationCheck!.day != now.day;
         break;
 
       case RotationCycle.DAILY:
-      // Check if we've crossed a day boundary
+        // Check if we've crossed a day boundary
         shouldSend = _lastRotationCheck!.day != now.day;
         break;
 
@@ -1057,7 +1048,7 @@ class EmailAppender extends FileAppender {
         break;
 
       default:
-      // For other cycles, use duration-based check as fallback
+        // For other cycles, use duration-based check as fallback
         final elapsed = now.difference(_lastRotationCheck!);
         if (rotationCycle.duration != null) {
           shouldSend = elapsed >= rotationCycle.duration!;
@@ -1067,7 +1058,6 @@ class EmailAppender extends FileAppender {
 
     return shouldSend;
   }
-
 
   /// Override to NOT include rotation suffix in filename
   /// EmailAppender uses the same file continuously
@@ -1399,32 +1389,34 @@ class EmailAppender extends FileAppender {
 
     if (test && rotationCycle == RotationCycle.TEN_MINUTES) {
       // In test mode, next minute
-      return DateTime(now.year, now.month, now.day, now.hour, now.minute + 1, 0);
+      return DateTime(
+          now.year, now.month, now.day, now.hour, now.minute + 1, 0);
     }
 
     switch (rotationCycle) {
       case RotationCycle.TEN_MINUTES:
-      // Next 10-minute boundary
+        // Next 10-minute boundary
         final currentBoundary = (now.minute ~/ 10) * 10;
         final nextBoundary = currentBoundary + 10;
         if (nextBoundary >= 60) {
           return DateTime(now.year, now.month, now.day, now.hour + 1, 0, 0);
         }
-        return DateTime(now.year, now.month, now.day, now.hour, nextBoundary, 0);
+        return DateTime(
+            now.year, now.month, now.day, now.hour, nextBoundary, 0);
 
       case RotationCycle.THIRTY_MINUTES:
-      // Next 30-minute boundary
+        // Next 30-minute boundary
         if (now.minute < 30) {
           return DateTime(now.year, now.month, now.day, now.hour, 30, 0);
         }
         return DateTime(now.year, now.month, now.day, now.hour + 1, 0, 0);
 
       case RotationCycle.HOURLY:
-      // Next hour
+        // Next hour
         return DateTime(now.year, now.month, now.day, now.hour + 1, 0, 0);
 
       case RotationCycle.DAILY:
-      // Next midnight
+        // Next midnight
         return DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
 
       default:
@@ -1485,7 +1477,7 @@ class EmailAppender extends FileAppender {
       case RotationCycle.WEEKLY:
         return _lastRotationCheck!.add(Duration(days: 7));
       case RotationCycle.MONTHLY:
-      // Approximate - add 30 days
+        // Approximate - add 30 days
         return _lastRotationCheck!.add(Duration(days: 30));
       default:
         return null;
@@ -1515,7 +1507,8 @@ class EmailAppender extends FileAppender {
     buffer.writeln('  Password Set: ${config['hasPassword']}');
 
     buffer.writeln('\n✉️ Email Settings:');
-    buffer.writeln('  From: ${config['fromEmail']} ${config['fromName'] != null ? '(${config['fromName']})' : ''}');
+    buffer.writeln(
+        '  From: ${config['fromEmail']} ${config['fromName'] != null ? '(${config['fromName']})' : ''}');
     buffer.writeln('  To: ${(config['toEmails'] as List).join(', ')}');
     if ((config['ccEmails'] as List).isNotEmpty) {
       buffer.writeln('  CC: ${(config['ccEmails'] as List).join(', ')}');
@@ -1524,10 +1517,12 @@ class EmailAppender extends FileAppender {
       buffer.writeln('  BCC: ${(config['bccEmails'] as List).join(', ')}');
     }
     buffer.writeln('  Subject Prefix: ${config['subjectPrefix']}');
-    buffer.writeln('  Attachment Pattern: ${config['attachmentFilePattern'] ?? 'default'}');
+    buffer.writeln(
+        '  Attachment Pattern: ${config['attachmentFilePattern'] ?? 'default'}');
 
     buffer.writeln('\n🔄 Rotation Settings:');
-    buffer.writeln('  Cycle: ${config['rotationCycle']} (${config['rotationCycleValue']})');
+    buffer.writeln(
+        '  Cycle: ${config['rotationCycle']} (${config['rotationCycleValue']})');
     buffer.writeln('  Last Check: ${config['lastRotationCheck'] ?? 'never'}');
     buffer.writeln('  Next Rotation: ${config['nextRotationTime'] ?? 'N/A'}');
     if (config['minutesUntilRotation'] != null) {

@@ -22,3 +22,4 @@ http_endpoint_credentials.txt
 logs/
 
 pubspec.yaml.local
+email_logs/

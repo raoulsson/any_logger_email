@@ -92,8 +92,8 @@ class EmailAppenderBuilder {
   /// Sets the SMTP server configuration
   EmailAppenderBuilder withSmtp(String host, int port,
       {bool ssl = false,
-        bool allowInsecure = false,
-        bool ignoreBadCertificate = false}) {
+      bool allowInsecure = false,
+      bool ignoreBadCertificate = false}) {
     _config['smtpHost'] = host;
     _config['smtpPort'] = port;
     _config['ssl'] = ssl;
@@ -398,11 +398,12 @@ class EmailAppenderBuilder {
   /// Emails sent every 10 minutes with accumulated critical logs
   EmailAppenderBuilder withCriticalAlertPreset() {
     _config['level'] = Level.ERROR.name;
-    _config['rotationCycle'] = RotationCycle.TEN_MINUTES.value; // Every 10 minutes
+    _config['rotationCycle'] =
+        RotationCycle.TEN_MINUTES.value; // Every 10 minutes
     _config['subjectPrefix'] = '[🚨 CRITICAL ALERT]';
     _config['sendAsHtml'] = true;
     _config['sendImmediatelyOnError'] = true;
-    _config['immediateErrorThreshold'] = 1;  // Send immediately on first error
+    _config['immediateErrorThreshold'] = 1; // Send immediately on first error
     _config['attachLogFile'] = false;
     _config['maxInlineLines'] = 100;
     _config['includeStackTrace'] = true;
@@ -443,7 +444,8 @@ class EmailAppenderBuilder {
   /// Development preset - sends frequently for debugging
   EmailAppenderBuilder withDevelopmentPreset() {
     _config['level'] = Level.DEBUG.name;
-    _config['rotationCycle'] = RotationCycle.THIRTY_MINUTES.value; // Every 30 minutes
+    _config['rotationCycle'] =
+        RotationCycle.THIRTY_MINUTES.value; // Every 30 minutes
     _config['subjectPrefix'] = '[DEV LOG]';
     _config['includeStackTrace'] = true;
     _config['includeMetadata'] = true;

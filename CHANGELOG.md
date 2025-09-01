@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+* Changed setup for email services to match authentication
+
 ## 1.0.7
 
 * Added new appender method for short self description to improve logger config debugging
