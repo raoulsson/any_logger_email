@@ -63,7 +63,6 @@ class EmailAppender extends FileAppender {
   final List<LogRecord> _errorBuffer = [];
   final List<LogRecord> _pendingBuffer = [];
   bool _isSwapping = false;
-  final _swapLock = Completer<void>()..complete();
 
   // Rate limiting
   int maxEmailsPerHour = 20;
@@ -84,80 +83,6 @@ class EmailAppender extends FileAppender {
 
   EmailAppender() : super() {
     path = 'email_logs/';
-  }
-
-  /// Helper method to parse rotation cycle from config
-  static RotationCycle _parseRotationCycle(dynamic value) {
-    if (value == null) return RotationCycle.HOURLY;
-
-    if (value is RotationCycle) return value;
-
-    if (value is String) {
-      final upperValue = value.toUpperCase();
-
-      // Try to match by name (e.g., 'DAILY', 'HOURLY')
-      try {
-        return RotationCycle.values.firstWhere(
-          (cycle) => cycle.name == upperValue,
-        );
-      } catch (_) {
-        // If not found by name, try by value
-      }
-
-      // Try to match by value (e.g., 'DAY', 'HOUR')
-      try {
-        return RotationCycle.values.firstWhere(
-          (cycle) => cycle.value.toUpperCase() == upperValue,
-        );
-      } catch (_) {
-        // If not found by value either
-      }
-
-      // Handle common variations
-      switch (upperValue) {
-        case 'DAY':
-        case 'DAILY':
-          return RotationCycle.DAILY;
-        case 'WEEK':
-        case 'WEEKLY':
-          return RotationCycle.WEEKLY;
-        case 'MONTH':
-        case 'MONTHLY':
-          return RotationCycle.MONTHLY;
-        case 'HOUR':
-        case 'HOURLY':
-          return RotationCycle.HOURLY;
-        case '10MIN':
-        case 'TEN_MINUTES':
-        case '10_MINUTES':
-          return RotationCycle.TEN_MINUTES;
-        case '30MIN':
-        case 'THIRTY_MINUTES':
-        case '30_MINUTES':
-          return RotationCycle.THIRTY_MINUTES;
-        case '2HOUR':
-        case 'TWO_HOURS':
-        case '2_HOURS':
-          return RotationCycle.TWO_HOURS;
-        case '4HOUR':
-        case 'FOUR_HOURS':
-        case '4_HOURS':
-          return RotationCycle.FOUR_HOURS;
-        case '12HOUR':
-        case 'TWELVE_HOURS':
-        case '12_HOURS':
-          return RotationCycle.TWELVE_HOURS;
-        case 'NEVER':
-        case 'NONE':
-          return RotationCycle.NEVER;
-        default:
-          Logger.getSelfLogger()?.logWarn(
-              'Unknown rotation cycle value: $value. Defaulting to HOURLY.');
-          return RotationCycle.HOURLY;
-      }
-    }
-
-    return RotationCycle.HOURLY;
   }
 
   static Future<EmailAppender> fromConfig(
@@ -1447,41 +1372,6 @@ class EmailAppender extends FileAppender {
 
     // Show first 2 chars and last char of local part
     return '${localPart.substring(0, 2)}***${localPart.substring(localPart.length - 1)}$domain';
-  }
-
-  /// Calculate next rotation time
-  DateTime? _calculateNextRotationTime() {
-    if (_lastRotationCheck == null || rotationCycle == RotationCycle.NEVER) {
-      return null;
-    }
-
-    switch (rotationCycle) {
-      case RotationCycle.TEN_MINUTES:
-        return _lastRotationCheck!.add(Duration(minutes: 10));
-      case RotationCycle.THIRTY_MINUTES:
-        return _lastRotationCheck!.add(Duration(minutes: 30));
-      case RotationCycle.HOURLY:
-        return _lastRotationCheck!.add(Duration(hours: 1));
-      case RotationCycle.TWO_HOURS:
-        return _lastRotationCheck!.add(Duration(hours: 2));
-      case RotationCycle.THREE_HOURS:
-        return _lastRotationCheck!.add(Duration(hours: 3));
-      case RotationCycle.FOUR_HOURS:
-        return _lastRotationCheck!.add(Duration(hours: 4));
-      case RotationCycle.SIX_HOURS:
-        return _lastRotationCheck!.add(Duration(hours: 6));
-      case RotationCycle.TWELVE_HOURS:
-        return _lastRotationCheck!.add(Duration(hours: 12));
-      case RotationCycle.DAILY:
-        return _lastRotationCheck!.add(Duration(days: 1));
-      case RotationCycle.WEEKLY:
-        return _lastRotationCheck!.add(Duration(days: 7));
-      case RotationCycle.MONTHLY:
-        // Approximate - add 30 days
-        return _lastRotationCheck!.add(Duration(days: 30));
-      default:
-        return null;
-    }
   }
 
   /// Additional debug method to get config as formatted string
