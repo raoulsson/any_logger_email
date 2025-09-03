@@ -36,7 +36,7 @@ class EmailAppender extends FileAppender {
   List<String> bccEmails = [];
   String? replyTo;
   String subjectPrefix = '[LOG]';
-  bool includeHostname = true;
+  bool includeHostnameOrDeviceId = true;
   bool includeAppInfo = true;
   String? attachmentFilePattern; // Custom pattern for attachment names
   bool useLocalTimeInSubject = true; // Use local time instead of UTC
@@ -56,8 +56,7 @@ class EmailAppender extends FileAppender {
   int immediateErrorThreshold = 10;
 
   // Email size limits
-  int maxEmailSizeBytes = 8 * 1024 * 1024; // 8MB default
-  int maxLinesPerEmail = 5000; // Max lines per email part
+  int maxEmailSizeBytes = 100 * 1024; // 8 * 1024 * 1024; // 8MB default
 
   // Buffer management
   final List<LogRecord> _errorBuffer = [];
@@ -104,6 +103,9 @@ class EmailAppender extends FileAppender {
         config['filePattern'] ??
         'log_attachment';
     appender.useLocalTimeInSubject = config['useLocalTimeInSubject'] ?? true;
+
+    print('config ');
+    print(config);
 
     // Handle rotation cycle configuration
     if (config.containsKey('rotationCycle')) {
@@ -184,7 +186,7 @@ class EmailAppender extends FileAppender {
 
     appender.replyTo = config['replyTo'];
     appender.subjectPrefix = config['subjectPrefix'] ?? '[LOG]';
-    appender.includeHostname = config['includeHostname'] ?? true;
+    appender.includeHostnameOrDeviceId = config['includeHostname'] ?? true;
     appender.includeAppInfo = config['includeAppInfo'] ?? true;
 
     // Email size settings
@@ -193,9 +195,6 @@ class EmailAppender extends FileAppender {
           (config['maxEmailSizeMB'] as num).toInt() * 1024 * 1024;
     } else if (config.containsKey('maxEmailSizeBytes')) {
       appender.maxEmailSizeBytes = config['maxEmailSizeBytes'];
-    }
-    if (config.containsKey('maxLinesPerEmail')) {
-      appender.maxLinesPerEmail = config['maxLinesPerEmail'];
     }
 
     // Formatting options
@@ -297,13 +296,13 @@ class EmailAppender extends FileAppender {
   void append(LogRecord logRecord) {
     if (!enabled) return;
 
-    // If we're in the middle of swapping, buffer the log
+    // If we're swapping, buffer the log for the NEXT email
     if (_isSwapping) {
       _pendingBuffer.add(logRecord);
-      return;
+      return; // Don't write to file during swap
     }
 
-    // Write to file
+    // Write to file normally
     super.append(logRecord);
 
     // Track errors for immediate sending
@@ -316,18 +315,14 @@ class EmailAppender extends FileAppender {
         _errorBuffer.length >= immediateErrorThreshold) {
       Logger.getSelfLogger()?.logInfo(
           'Immediate error threshold reached (${_errorBuffer.length} errors). Sending email.');
-
-      // Trigger async send without blocking
       _triggerAsyncSend();
       return;
     }
 
-    // Check if rotation period has passed based on clock time
+    // Check if rotation period has passed
     if (_shouldSendEmail()) {
       Logger.getSelfLogger()?.logInfo(
-          'Rotation boundary reached (${rotationCycle.name}). Sending email.');
-
-      // Trigger async send without blocking
+          'Rotation boundary reached (${rotationCycle.name}). Triggering email send.');
       _triggerAsyncSend();
     }
   }
@@ -357,41 +352,43 @@ class EmailAppender extends FileAppender {
     _isSwapping = true;
 
     try {
-      // Step 1: Create swap file name
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final swapFilePath = '${getFullFilename()}.swap.$timestamp';
-      final swapFile = File(swapFilePath);
-
-      // Step 2: Copy current file to swap file
-      if (file.existsSync() && file.lengthSync() > 0) {
-        await file.copy(swapFilePath);
-        Logger.getSelfLogger()?.logDebug(
-            'Created swap file: $swapFilePath (${await swapFile.length()} bytes)');
-
-        // Step 3: Clear the main log file
-        await file.writeAsString('');
-        Logger.getSelfLogger()?.logDebug('Cleared main log file');
-
-        // Step 4: Flush any pending logs that came in during swap
-        for (var record in _pendingBuffer) {
-          super.append(record);
-        }
-        _pendingBuffer.clear();
-
-        // Step 5: Send email from swap file WITH await to ensure completion
-        try {
-          await _sendSwapFile(swapFile);
-          Logger.getSelfLogger()
-              ?.logInfo('Successfully sent email from swap file');
-        } catch (e) {
-          Logger.getSelfLogger()
-              ?.logError('Failed to send email from swap file: $e');
-          // Don't delete swap file if send failed - keep for recovery
-          rethrow;
-        }
-      } else {
+      // Step 1: Check if current file has content
+      if (!file.existsSync() || file.lengthSync() == 0) {
         Logger.getSelfLogger()
             ?.logDebug('Log file empty or doesn\'t exist, skipping send');
+        return;
+      }
+
+      // Step 2: Create swap filename with timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final swapFilePath = '${getFullFilename()}.swap.$timestamp';
+
+      // Step 3: ATOMIC SWAP - rename current file to swap file
+      // This is instant and captures everything written up to this moment
+      await file.rename(swapFilePath);
+
+      Logger.getSelfLogger()?.logDebug('Swapped log file to: $swapFilePath');
+
+      // Step 4: Immediately create new empty file for future logs
+      ensurePathExists(); // This recreates the file at the original path
+
+      // Step 5: Process any buffered logs into the NEW file
+      for (var record in _pendingBuffer) {
+        super.append(record); // Goes to the new file
+      }
+      _pendingBuffer.clear();
+
+      // Step 6: Send email from the swapped file
+      final swapFile = File(swapFilePath);
+      try {
+        await _sendSwapFile(swapFile);
+        Logger.getSelfLogger()
+            ?.logInfo('Successfully sent email from swap file: $swapFilePath');
+      } catch (e) {
+        Logger.getSelfLogger()
+            ?.logError('Failed to send email from swap file: $e');
+        // Keep swap file for manual recovery if send failed
+        rethrow;
       }
     } catch (e) {
       Logger.getSelfLogger()?.logError('Error during swap and send: $e');
@@ -412,7 +409,7 @@ class EmailAppender extends FileAppender {
         await _sendSingleEmail(swapFile, 1, 1);
       } else {
         // Multi-part email
-        await _sendMultiPartEmail(swapFile);
+        await _sendMultipleEmail(swapFile);
       }
 
       // Delete swap file after successful send
@@ -431,12 +428,6 @@ class EmailAppender extends FileAppender {
   /// Sends a single email (possibly part of a multi-part series)
   Future<void> _sendSingleEmail(
       File logFile, int partNumber, int totalParts) async {
-    if (!_isWithinRateLimit()) {
-      Logger.getSelfLogger()?.logWarn(
-          'Email rate limit reached. Skipping send of part $partNumber/$totalParts');
-      return;
-    }
-
     if (test) {
       Logger.getSelfLogger()?.logDebug(
           'Test mode: Would send email part $partNumber/$totalParts to ${toEmails.join(", ")}');
@@ -464,27 +455,40 @@ class EmailAppender extends FileAppender {
     }
   }
 
-  /// Sends multi-part email for large log files
-  Future<void> _sendMultiPartEmail(File logFile) async {
-    final content = await logFile.readAsString();
-    final lines = content.split('\n');
+  /// Sends multiple emails for large log files
+  Future<void> _sendMultipleEmail(File logFile) async {
+    final fileContent = await logFile.readAsString();
+    final allLines = fileContent.split('\n');
+    final fileSize = await logFile.length();
 
-    // Calculate number of parts needed
-    final totalParts = (lines.length / maxLinesPerEmail).ceil();
+    // Calculate number of parts based on byte size
+    final totalParts = (fileSize / maxEmailSizeBytes).ceil();
+    final linesPerPart = (allLines.length / totalParts).ceil();
 
-    Logger.getSelfLogger()
-        ?.logInfo('Splitting large log file into $totalParts parts');
+    Logger.getSelfLogger()?.logInfo(
+        'Splitting ${fileSize} bytes (${allLines.length} lines) into $totalParts parts '
+            '(~${linesPerPart} lines each, targeting ${maxEmailSizeBytes} bytes per email)');
 
     for (int part = 0; part < totalParts; part++) {
-      final startLine = part * maxLinesPerEmail;
-      final endLine = min((part + 1) * maxLinesPerEmail, lines.length);
-      final partLines = lines.sublist(startLine, endLine);
+      final startLine = part * linesPerPart;
+      final endLine = min((part + 1) * linesPerPart, allLines.length);
+      final partLines = allLines.sublist(startLine, endLine);
+
+      // Filter out any empty or incomplete lines at the end
+      final cleanLines = <String>[];
+      for (var line in partLines) {
+        // Only add complete lines (not truncated)
+        if (line.isNotEmpty) {
+          cleanLines.add(line);
+        }
+      }
 
       // Create temporary file for this part
       final partFile = File('${logFile.path}.part${part + 1}');
-      await partFile.writeAsString(partLines.join('\n'));
+      await partFile.writeAsString(cleanLines.join('\n'));
 
       try {
+        // Send email with this part's content
         await _sendSingleEmail(partFile, part + 1, totalParts);
 
         // Small delay between parts to avoid overwhelming SMTP server
@@ -505,7 +509,11 @@ class EmailAppender extends FileAppender {
   /// Creates email message with part information
   Future<Message> _createEmailMessage(
       File logFile, int partNumber, int totalParts) async {
-    final partInfo = totalParts > 1 ? ' ($partNumber of $totalParts)' : '';
+    // This file is now either:
+    // - The full swap file (if single email)
+    // - A part file (if multiple emails)
+
+    final partInfo = totalParts > 1 ? ' (Part $partNumber of $totalParts)' : '';
     final subject = _generateSubject(logFile) + partInfo;
 
     final message = Message()
@@ -526,69 +534,90 @@ class EmailAppender extends FileAppender {
       message.headers['Reply-To'] = replyTo!;
     }
 
-    // Read log file content
+    // Read THIS PART's content
     final logContent = await logFile.readAsString();
-    final lines = logContent.split('\n');
-    final lineCount = lines.length;
+    final allLines = logContent.split('\n');
 
-    // Analyze log levels
-    final stats = _analyzeLogContent(lines);
+    // Get non-empty lines for display and counting
+    final nonEmptyLines = <String>[];
+    for (final line in allLines) {
+      if (line.trim().isNotEmpty) {
+        nonEmptyLines.add(line);
+      }
+    }
 
-    // Determine if we should attach or inline
-    final shouldAttach = attachLogFile && lineCount > maxInlineLines;
+    final totalLineCount = nonEmptyLines.length;
+    final fileSize = await logFile.length();
 
-    if (shouldAttach) {
-      // Use custom attachment pattern or fallback to filePattern
+    Logger.getSelfLogger()?.logDebug(
+        'Processing ${totalParts > 1 ? "part $partNumber" : "full file"} for email: '
+        'lines=$totalLineCount, size=$fileSize bytes, maxInlineLines=$maxInlineLines');
+
+    // Get last maxInlineLines from THIS PART'S content
+    final linesToShowInline = totalLineCount > maxInlineLines
+        ? nonEmptyLines.sublist(
+            totalLineCount - maxInlineLines) // Last N lines of this part
+        : nonEmptyLines; // All lines if fewer than max
+
+    // Analyze log levels from THIS PART
+    final stats = _analyzeLogContent(nonEmptyLines);
+
+    // Attach THIS PART's file
+    if (attachLogFile) {
       final pattern = attachmentFilePattern ?? filePattern ?? 'logs';
-
-      // Create timestamp for attachment name
       final now = DateTime.now();
-      final timestamp = _formatDateForFilename(now);
+      final roundedTime = _roundToRotationBoundary(now);
+      final timestamp = _formatDateForFilename(roundedTime);
+      String identifier = _getHostnameOrDeviceId();
 
       final attachmentName = totalParts > 1
-          ? '${pattern}_${timestamp}_part${partNumber}.$fileExtension'
-          : '${pattern}_$timestamp.$fileExtension';
+          ? '${pattern}_${identifier}_${timestamp}_part${partNumber}_of_$totalParts.$fileExtension'
+          : '${pattern}_${identifier}_$timestamp.$fileExtension';
 
-      // Create FileAttachment with custom name
       final attachment = FileAttachment(
-        logFile,
+        logFile, // This is either the full file or a part
         fileName: attachmentName,
       );
 
       message.attachments.add(attachment);
 
-      // Always set both HTML and text versions
-      message.html = _generateHtmlSummary(
-          stats, lineCount, attachmentName, partNumber, totalParts);
-      message.text = _generateTextSummary(
-          stats, lineCount, attachmentName, partNumber, totalParts);
-    } else {
-      // Include inline
-      message.html = _generateHtmlBody(lines, stats, partNumber, totalParts);
-      message.text = _generateTextBody(lines, stats, partNumber, totalParts);
+      Logger.getSelfLogger()?.logInfo(
+          'Attached ${totalParts > 1 ? "part $partNumber/$totalParts" : "full file"}: '
+          '$attachmentName with $totalLineCount lines, $fileSize bytes');
     }
+
+    // Generate HTML/Text with THIS PART's content
+    message.html = _generateHtmlBodyWithAttachment(
+        linesToShowInline, // Last N lines from THIS PART
+        totalLineCount, // Total lines in THIS PART
+        fileSize, // Size of THIS PART
+        stats, // Stats from THIS PART
+        partNumber,
+        totalParts);
+
+    message.text = _generateTextBodyWithAttachment(
+        linesToShowInline, // Last N lines from THIS PART
+        totalLineCount, // Total lines in THIS PART
+        fileSize, // Size of THIS PART
+        stats, // Stats from THIS PART
+        partNumber,
+        totalParts);
 
     return message;
   }
 
-  /// Format date for filename (always local time)
-  String _formatDateForFilename(DateTime date) {
-    // Format as YYYY-MM-DD_HH-mm-ss in local time
-    final year = date.year.toString();
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    final second = date.second.toString().padLeft(2, '0');
-
-    return '${year}-${month}-${day}_${hour}-${minute}-${second}';
-  }
-
-  String _generateHtmlSummary(Map<String, dynamic> stats, int lineCount,
-      String fileName, int partNumber, int totalParts) {
+  String _generateHtmlBodyWithAttachment(
+      List<String> linesToShow,
+      int totalLineCount,
+      int fileSize,
+      Map<String, dynamic> stats,
+      int partNumber,
+      int totalParts) {
     final partInfo = totalParts > 1
-        ? '<div class="part-info"><strong>Part:</strong> $partNumber of $totalParts</div>'
+        ? '<div class="part-indicator"><strong>📧 Part $partNumber of $totalParts</strong></div>'
         : '';
+
+    final showingPartial = linesToShow.length < totalLineCount;
 
     final buffer = StringBuffer();
     buffer.writeln('''
@@ -599,18 +628,29 @@ class EmailAppender extends FileAppender {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
       color: #333;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 20px;
     }
-    .summary { 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .part-indicator {
+      background: #fff3e0;
+      color: #f57c00;
+      padding: 12px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-size: 16px;
+      border: 2px solid #ffb74d;
+    }
+    .header { 
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       color: white;
       padding: 25px;
       border-radius: 10px;
+      margin-bottom: 20px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     h2 { 
@@ -621,7 +661,7 @@ class EmailAppender extends FileAppender {
     }
     .info-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 15px;
       margin: 20px 0;
     }
@@ -651,7 +691,7 @@ class EmailAppender extends FileAppender {
     }
     .stats h3 {
       margin-top: 0;
-      color: #667eea;
+      color: #1e3c72;
     }
     .stat-line { 
       display: flex;
@@ -667,6 +707,29 @@ class EmailAppender extends FileAppender {
     .level-info { background: #e3f2fd; color: #1976d2; }
     .level-debug { background: #f5f5f5; color: #616161; }
     .level-trace { background: #fafafa; color: #9e9e9e; }
+    .logs { 
+      margin: 20px 0; 
+      background-color: #fafafa; 
+      padding: 15px;
+      border: 1px solid #ddd;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      max-height: 600px;
+      overflow-y: auto;
+      border-radius: 5px;
+    }
+    .log-line { 
+      margin: 2px 0; 
+      padding: 2px 5px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .line-fatal { background: #ffebee; color: #8b0000; font-weight: bold; }
+    .line-error { background: #ffebee; color: #d32f2f; }
+    .line-warn { background: #fff3e0; color: #f57c00; }
+    .line-info { background: #e3f2fd; color: #1976d2; }
+    .line-debug { background: #f5f5f5; color: #616161; }
+    .line-trace { background: #fafafa; color: #9e9e9e; }
     .attachment-note {
       background: #e8f5e9;
       color: #2e7d32;
@@ -675,37 +738,46 @@ class EmailAppender extends FileAppender {
       margin-top: 20px;
       border-left: 4px solid #4caf50;
     }
-    .part-info { 
+    .showing-partial {
       background: #fff3e0;
       color: #f57c00;
       padding: 10px;
       border-radius: 5px;
       margin: 15px 0;
       text-align: center;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
-  <div class="summary">
-    <h2>📊 Log Report Summary</h2>
-    $partInfo
+  $partInfo
+  <div class="header">
+    <h2>📊 Log Report${totalParts > 1 ? " - Part $partNumber/$totalParts" : ""}</h2>
     
     <div class="info-grid">
       <div class="info-item">
-        <div class="info-label">Total Lines</div>
-        <div class="info-value">$lineCount</div>
+        <div class="info-label">${totalParts > 1 ? "Part Lines" : "Total Lines"}</div>
+        <div class="info-value">$totalLineCount</div>
       </div>
       <div class="info-item">
-        <div class="info-label">Rotation Period</div>
+        <div class="info-label">${totalParts > 1 ? "Part Size" : "File Size"}</div>
+        <div class="info-value">${_formatFileSize(fileSize)}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Period</div>
         <div class="info-value">${rotationCycle.name}</div>
       </div>
   ''');
 
-    if (includeHostname) {
+    if (includeHostnameOrDeviceId) {
+      final hostDisplay = _getHostnameOrDeviceId();
+      final hostLabel =
+          IdProviderResolver.isFlutterApp() ? 'Device ID' : 'Host';
+
       buffer.writeln('''
       <div class="info-item">
-        <div class="info-label">Host</div>
-        <div class="info-value">${_getHostname()}</div>
+        <div class="info-label">$hostLabel</div>
+        <div class="info-value">$hostDisplay</div>
       </div>
     ''');
     }
@@ -722,11 +794,12 @@ class EmailAppender extends FileAppender {
       }
     }
 
-    buffer.writeln('</div></div>'); // Close info-grid and summary
+    buffer.writeln('</div></div>'); // Close info-grid and header
 
-    // Log level statistics
+    // Log level statistics from THIS PART
     buffer.writeln('<div class="stats">');
-    buffer.writeln('<h3>Log Level Distribution</h3>');
+    buffer.writeln(
+        '<h3>Log Level Distribution ${totalParts > 1 ? "(This Part)" : ""}</h3>');
 
     ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].forEach((level) {
       final count = stats[level] ?? 0;
@@ -734,7 +807,7 @@ class EmailAppender extends FileAppender {
         final cssClass = 'stat-line level-${level.toLowerCase()}';
         buffer.writeln('''
         <div class="$cssClass">
-          <span>$level</span>
+          <span>$level&nbsp;</span>
           <span>$count</span>
         </div>
       ''');
@@ -743,115 +816,23 @@ class EmailAppender extends FileAppender {
 
     buffer.writeln('</div>');
 
-    if (totalParts > 1) {
+    // Note if showing partial
+    if (showingPartial) {
       buffer.writeln('''
-      <div class="part-info">
-        <strong>📧 Multi-part Email</strong><br>
-        This is part $partNumber of $totalParts. Each part contains up to $maxLinesPerEmail lines.
-      </div>
+    <div class="showing-partial">
+      📝 Showing last ${linesToShow.length} of $totalLineCount lines from ${totalParts > 1 ? "this part" : "the log"}. 
+      Complete ${totalParts > 1 ? "part" : "log"} attached.
+    </div>
     ''');
     }
 
-    buffer.writeln('''
-    <div class="attachment-note">
-      <strong>📎 Attachment</strong><br>
-      Full log file attached as: <code>$fileName</code>
-    </div>
-  </body>
-  </html>
-  ''');
+    // Log entries (last N lines from THIS PART)
+    buffer.writeln('<div class="logs">');
+    buffer.writeln(
+        '<h3>Recent Log Entries${showingPartial ? " (Last ${linesToShow.length} lines)" : ""}'
+        '${totalParts > 1 ? " from Part $partNumber" : ""}</h3>');
 
-    return buffer.toString();
-  }
-
-  String _generateTextSummary(Map<String, dynamic> stats, int lineCount,
-      String filePath, int partNumber, int totalParts) {
-    final buffer = StringBuffer();
-    buffer.writeln('=' * 60);
-    buffer.writeln('LOG REPORT SUMMARY');
-    if (totalParts > 1) {
-      buffer.writeln('Part $partNumber of $totalParts');
-    }
-    buffer.writeln('=' * 60);
-    buffer.writeln('Total Lines: $lineCount');
-    buffer.writeln('File: $filePath');
-    buffer.writeln('Period: ${rotationCycle.name}');
-
-    if (includeHostname) {
-      buffer.writeln('Host: ${_getHostname()}');
-    }
-
-    if (includeAppInfo) {
-      final appVersion = LoggerFactory.getAppVersion();
-      if (appVersion != null) {
-        buffer.writeln('App Version: $appVersion');
-      }
-    }
-
-    buffer.writeln('\nLog Level Distribution:');
-    buffer.writeln('-' * 30);
-
-    ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].forEach((level) {
-      final count = stats[level] ?? 0;
-      if (count > 0) {
-        buffer.writeln('$level: $count');
-      }
-    });
-
-    if (totalParts > 1) {
-      buffer.writeln('\nThis is part $partNumber of $totalParts.');
-      buffer.writeln('Each part contains up to $maxLinesPerEmail lines.');
-    }
-
-    buffer.writeln('\nFull log file is attached.');
-    buffer.writeln('=' * 60);
-
-    return buffer.toString();
-  }
-
-  String _generateHtmlBody(List<String> lines, Map<String, dynamic> stats,
-      int partNumber, int totalParts) {
-    final partInfo = totalParts > 1
-        ? '<p><strong>Part $partNumber of $totalParts</strong></p>'
-        : '';
-
-    final buffer = StringBuffer();
-    buffer.writeln('''
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; }
-    .header { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
-    .logs { 
-      margin: 20px 0; 
-      background-color: #fafafa; 
-      padding: 10px;
-      border: 1px solid #ddd;
-      font-family: monospace;
-      font-size: 0.9em;
-      max-height: 600px;
-      overflow-y: auto;
-    }
-    .log-line { margin: 2px 0; white-space: pre-wrap; }
-    .line-fatal { color: #8b0000; font-weight: bold; }
-    .line-error { color: #d9534f; }
-    .line-warn { color: #f0ad4e; }
-    .line-info { color: #5bc0de; }
-    .line-debug { color: #999; }
-    .line-trace { color: #ccc; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h2>Log Report</h2>
-    $partInfo
-    <p>Period: ${rotationCycle.name}</p>
-  </div>
-  <div class="logs">
-''');
-
-    for (var line in lines) {
+    for (var line in linesToShow) {
       if (line.trim().isEmpty) continue;
 
       var cssClass = 'log-line';
@@ -873,33 +854,96 @@ class EmailAppender extends FileAppender {
     }
 
     buffer.writeln('</div>');
+
+    if (attachLogFile) {
+      buffer.writeln('''
+    <div class="attachment-note">
+      <strong>📎 ${totalParts > 1 ? "Part $partNumber/$totalParts" : "Complete Log File"} Attached</strong><br>
+      ${totalParts > 1 ? "This part contains" : "Full log with"} $totalLineCount entries (${_formatFileSize(fileSize)}).
+      ${totalParts > 1 ? "<br>This is part $partNumber of $totalParts total parts." : ""}
+    </div>
+    ''');
+    }
+
     buffer.writeln('</body></html>');
 
     return buffer.toString();
   }
 
-  String _generateTextBody(List<String> lines, Map<String, dynamic> stats,
-      int partNumber, int totalParts) {
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+// Text version with attachment note
+  String _generateTextBodyWithAttachment(
+      List<String> linesToShow,
+      int totalLineCount,
+      int fileSize,
+      Map<String, dynamic> stats,
+      int partNumber,
+      int totalParts) {
     final buffer = StringBuffer();
+    final showingPartial = linesToShow.length < totalLineCount;
+
     buffer.writeln('=' * 60);
     buffer.writeln('LOG REPORT');
     if (totalParts > 1) {
       buffer.writeln('Part $partNumber of $totalParts');
     }
     buffer.writeln('Period: ${rotationCycle.name}');
-    buffer.writeln('=' * 60);
-    buffer.writeln();
+    buffer.writeln('Total Lines: $totalLineCount');
+    buffer.writeln('File Size: ${_formatFileSize(fileSize)}');
 
-    for (var line in lines) {
+    if (showingPartial) {
+      buffer.writeln('Showing: Last ${linesToShow.length} lines inline');
+    }
+
+    buffer.writeln('=' * 60);
+
+    buffer.writeln('\nLog Level Distribution (All $totalLineCount lines):');
+    buffer.writeln('-' * 30);
+
+    ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].forEach((level) {
+      final count = stats[level] ?? 0;
+      if (count > 0) {
+        buffer.writeln('$level:&nbsp;$count');
+      }
+    });
+
+    buffer.writeln('\n' + '=' * 60);
+    buffer.writeln(
+        'RECENT LOG ENTRIES${showingPartial ? " (LAST ${linesToShow.length} LINES)" : ""}:');
+    buffer.writeln('=' * 60);
+
+    for (var line in linesToShow) {
       if (line.trim().isNotEmpty) {
         buffer.writeln(line);
       }
     }
 
-    buffer.writeln();
+    buffer.writeln('\n' + '=' * 60);
+    if (attachLogFile) {
+      buffer.writeln(
+          '📎 Complete log file attached: $totalLineCount entries, ${_formatFileSize(fileSize)}');
+    }
     buffer.writeln('=' * 60);
 
     return buffer.toString();
+  }
+
+  /// Format date for filename (always local time)
+  String _formatDateForFilename(DateTime date) {
+    // Format as YYYY-MM-DD_HH-mm-ss in local time
+    final year = date.year.toString();
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
+
+    return '${year}-${month}-${day}_${hour}-${minute}-${second}';
   }
 
   /// Check if enough time has passed to send an email based on rotation cycle
@@ -930,15 +974,11 @@ class EmailAppender extends FileAppender {
 
     switch (rotationCycle) {
       case RotationCycle.TEN_MINUTES:
-        // Check if we've crossed a 10-minute boundary (00, 10, 20, 30, 40, 50)
         final lastBoundary = (_lastRotationCheck!.minute ~/ 10) * 10;
         final currentBoundary = (now.minute ~/ 10) * 10;
 
-        // We've crossed a boundary if:
-        // 1. The boundary minutes are different, OR
-        // 2. We've crossed an hour/day boundary
-        shouldSend = (lastBoundary != currentBoundary &&
-                now.difference(_lastRotationCheck!).inMinutes >= 1) ||
+        // Remove the minute check - just check if boundary changed
+        shouldSend = (lastBoundary != currentBoundary) ||
             _lastRotationCheck!.hour != now.hour ||
             _lastRotationCheck!.day != now.day;
 
@@ -1027,11 +1067,6 @@ class EmailAppender extends FileAppender {
     // EmailAppender keeps writing to the same file
   }
 
-  bool _isWithinRateLimit() {
-    _cleanupRateLimitTimestamps();
-    return _sentTimestamps.length < maxEmailsPerHour;
-  }
-
   Map<String, int> _analyzeLogContent(List<String> lines) {
     final stats = {
       'FATAL': 0,
@@ -1040,31 +1075,77 @@ class EmailAppender extends FileAppender {
       'INFO': 0,
       'DEBUG': 0,
       'TRACE': 0,
+      'UNKNOWN': 0, // Add counter for lines without clear level
     };
 
     for (var line in lines) {
-      for (var level in stats.keys) {
-        if (line.contains('[$level]') || line.contains(' $level ')) {
+      if (line.trim().isEmpty) continue;
+
+      bool foundLevel = false;
+
+      // Check for level patterns in various formats
+      for (var level in ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE']) {
+        // Check for [LEVEL], [ LEVEL ], or just LEVEL with word boundaries
+        if (line.contains('[$level]') ||
+            line.contains(' $level ') ||
+            line.contains(' $level:') ||
+            line.contains('|$level|') ||
+            RegExp('\\b$level\\b').hasMatch(line)) {
           stats[level] = stats[level]! + 1;
+          foundLevel = true;
           break;
         }
       }
+
+      // If no level found, count as UNKNOWN or try to infer
+      if (!foundLevel) {
+        // Try to infer from content patterns
+        if (line.contains('ERROR') ||
+            line.contains('Exception') ||
+            line.contains('Failed')) {
+          stats['ERROR'] = stats['ERROR']! + 1;
+        } else if (line.contains('WARN') || line.contains('Warning')) {
+          stats['WARN'] = stats['WARN']! + 1;
+        } else if (line.contains('DEBUG')) {
+          stats['DEBUG'] = stats['DEBUG']! + 1;
+        } else {
+          // Default to INFO for normal log lines
+          stats['INFO'] = stats['INFO']! + 1;
+        }
+      }
+    }
+
+    // Log what we found for debugging
+    final totalCounted = stats.values.reduce((a, b) => a + b);
+    if (totalCounted == 0) {
+      Logger.getSelfLogger()
+          ?.logWarn('No log levels detected in ${lines.length} lines. '
+              'Check that your log format includes level markers.');
+    } else {
+      Logger.getSelfLogger()?.logDebug('Analyzed ${lines.length} lines: '
+          '${stats.entries.where((e) => e.value > 0).map((e) => "${e.key}:${e.value}").join(", ")}');
     }
 
     return stats;
   }
 
   String _generateSubject(File logFile) {
-    final hostname = includeHostname ? ' - ${_getHostname()}' : '';
+    final hostnameOrDeviceId =
+        includeHostnameOrDeviceId ? ' - ${_getHostnameOrDeviceId()}' : '';
     final period = ' [${rotationCycle.name}]';
 
     // Use local time for subject
     final now = DateTime.now();
+    final roundedTime = _roundToRotationBoundary(now);
     final timestamp = useLocalTimeInSubject
-        ? _formatLocalDateTime(now)
-        : now.toIso8601String();
+        ? _formatLocalDateTime(roundedTime)
+        : roundedTime.toIso8601String();
 
-    return '$subjectPrefix$hostname$period - $timestamp';
+    if (IdProviderResolver.isFlutterApp()) {
+      return '$subjectPrefix Device ID: $hostnameOrDeviceId$period - $timestamp';
+    }
+
+    return '$subjectPrefix Host: $hostnameOrDeviceId$period - $timestamp';
   }
 
   /// Format local date time for subject (Manila time)
@@ -1089,17 +1170,17 @@ class EmailAppender extends FileAppender {
         .replaceAll("'", '&#39;');
   }
 
-  String _getHostname() {
-    try {
-      return Platform.localHostname;
-    } catch (e) {
-      return 'unknown';
+  String _getHostnameOrDeviceId() {
+    if (IdProviderResolver.isFlutterApp()) {
+      // On Flutter, use device ID
+      return LoggerFactory.getDeviceId() ?? '<device_id>';
+    } else {
+      try {
+        return Platform.localHostname;
+      } catch (e) {
+        return 'unknown';
+      }
     }
-  }
-
-  void _cleanupRateLimitTimestamps() {
-    final cutoff = DateTime.now().subtract(rateLimitWindow);
-    _sentTimestamps.removeWhere((timestamp) => timestamp.isBefore(cutoff));
   }
 
   @override
@@ -1142,7 +1223,7 @@ class EmailAppender extends FileAppender {
     copy.bccEmails = List.from(bccEmails);
     copy.replyTo = replyTo;
     copy.subjectPrefix = subjectPrefix;
-    copy.includeHostname = includeHostname;
+    copy.includeHostnameOrDeviceId = includeHostnameOrDeviceId;
     copy.includeAppInfo = includeAppInfo;
 
     // Copy formatting properties
@@ -1160,7 +1241,6 @@ class EmailAppender extends FileAppender {
 
     // Copy size limits
     copy.maxEmailSizeBytes = maxEmailSizeBytes;
-    copy.maxLinesPerEmail = maxLinesPerEmail;
 
     // Copy rate limiting
     copy.maxEmailsPerHour = maxEmailsPerHour;
@@ -1256,7 +1336,7 @@ class EmailAppender extends FileAppender {
     // Email settings
     config.addAll({
       'subjectPrefix': subjectPrefix,
-      'includeHostname': includeHostname,
+      'includeHostname': includeHostnameOrDeviceId,
       'includeAppInfo': includeAppInfo,
       'attachmentFilePattern': attachmentFilePattern,
       'useLocalTimeInSubject': useLocalTimeInSubject,
@@ -1285,7 +1365,6 @@ class EmailAppender extends FileAppender {
     config.addAll({
       'maxEmailSizeBytes': maxEmailSizeBytes,
       'maxEmailSizeMB': (maxEmailSizeBytes / (1024 * 1024)).toStringAsFixed(2),
-      'maxLinesPerEmail': maxLinesPerEmail,
     });
 
     // Priority settings
@@ -1374,6 +1453,55 @@ class EmailAppender extends FileAppender {
     return '${localPart.substring(0, 2)}***${localPart.substring(localPart.length - 1)}$domain';
   }
 
+  DateTime _roundToRotationBoundary(DateTime date) {
+    switch (rotationCycle) {
+      case RotationCycle.TEN_MINUTES:
+        final minute = (date.minute ~/ 10) * 10;
+        return DateTime(
+            date.year, date.month, date.day, date.hour, minute, 0, 0);
+
+      case RotationCycle.THIRTY_MINUTES:
+        final minute = (date.minute ~/ 30) * 30;
+        return DateTime(
+            date.year, date.month, date.day, date.hour, minute, 0, 0);
+
+      case RotationCycle.HOURLY:
+        return DateTime(date.year, date.month, date.day, date.hour, 0, 0, 0);
+
+      case RotationCycle.TWO_HOURS:
+        final hour = (date.hour ~/ 2) * 2;
+        return DateTime(date.year, date.month, date.day, hour, 0, 0, 0);
+
+      case RotationCycle.FOUR_HOURS:
+        final hour = (date.hour ~/ 4) * 4;
+        return DateTime(date.year, date.month, date.day, hour, 0, 0, 0);
+
+      case RotationCycle.SIX_HOURS:
+        final hour = (date.hour ~/ 6) * 6;
+        return DateTime(date.year, date.month, date.day, hour, 0, 0, 0);
+
+      case RotationCycle.TWELVE_HOURS:
+        final hour = (date.hour ~/ 12) * 12;
+        return DateTime(date.year, date.month, date.day, hour, 0, 0, 0);
+
+      case RotationCycle.DAILY:
+        return DateTime(date.year, date.month, date.day, 0, 0, 0, 0);
+
+      case RotationCycle.WEEKLY:
+        // Round to Monday midnight
+        final weekday = date.weekday;
+        final daysToSubtract = weekday - 1; // Monday is 1
+        final monday = date.subtract(Duration(days: daysToSubtract));
+        return DateTime(monday.year, monday.month, monday.day, 0, 0, 0, 0);
+
+      case RotationCycle.MONTHLY:
+        return DateTime(date.year, date.month, 1, 0, 0, 0, 0);
+
+      default:
+        return date; // No rounding for NEVER or unknown
+    }
+  }
+
   /// Additional debug method to get config as formatted string
   String getConfigAsString() {
     final config = getConfig();
@@ -1421,7 +1549,6 @@ class EmailAppender extends FileAppender {
 
     buffer.writeln('\n📊 Size Limits:');
     buffer.writeln('  Max Email Size: ${config['maxEmailSizeMB']} MB');
-    buffer.writeln('  Max Lines Per Email: ${config['maxLinesPerEmail']}');
     buffer.writeln('  Max Inline Lines: ${config['maxInlineLines']}');
 
     buffer.writeln('\n⚡ Priority Settings:');

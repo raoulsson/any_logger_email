@@ -237,7 +237,7 @@ void main() {
       expect(appender.sendAsHtml, equals(true));
       expect(appender.includeStackTrace, equals(true));
       expect(appender.includeMetadata, equals(true));
-      expect(appender.includeHostname, equals(true));
+      expect(appender.includeHostnameOrDeviceId, equals(true));
       expect(appender.includeAppInfo, equals(true));
       expect(appender.attachLogFile, equals(true));
       expect(appender.groupByLevel, equals(false)); // Chronological by default
