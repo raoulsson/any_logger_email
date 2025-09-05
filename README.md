@@ -35,8 +35,7 @@ import 'package:any_logger_email/any_logger_email.dart';
 and call:
 
 ```dart
-AnyLoggerEmailExtension.register
-();
+AnyLoggerEmailExtension.register();
 ```
 
 ## Quick Start
@@ -55,17 +54,15 @@ You MUST use:
 
 ```dart
 // ✅ CORRECT: Using app-specific password
-await LoggerBuilder
-().console
-(
-level: Level.INFO)
-    .gmailWithAppPassword(
-emailAddress: 'your.app@gmail.com',
-appPassword: 'abcd-efgh-ijkl-mnop', // 16-char app password from Google
-toEmails: ['admin@example.com'],
-level: Level.ERROR,
-)
-    .build();
+await LoggerBuilder()
+  .console(level: Level.INFO)
+  .gmailWithAppPassword(
+    emailAddress: 'your.app@gmail.com',
+    appPassword: 'abcd-efgh-ijkl-mnop', // 16-char app password from Google
+    toEmails: ['admin@example.com'],
+    level: Level.ERROR,
+  )
+  .build();
 
 // ❌ WRONG: This will NOT work
 // .gmail(username: 'your.app@gmail.com', password: 'YourGooglePassword123!')
@@ -81,19 +78,18 @@ level: Level.ERROR,
 ### Custom SMTP Server
 
 ```dart
-await LoggerBuilder
-().email
-(
-smtpHost: 'smtp.company.com',
-smtpPort: 587,
-fromEmail: 'logger@company.com',
-toEmails: ['dev-team@company.com'],
-username: 'logger@company.com',
-passwordOrApiKey: 'secure_password_or_api_key', // Note the renamed parameter
-level: Level.ERROR,
-sendAsHtml: true,
-)
-    .build();
+await LoggerBuilder()
+  .email(
+    smtpHost: 'smtp.company.com',
+    smtpPort: 587,
+    fromEmail: 'logger@company.com',
+    toEmails: ['dev-team@company.com'],
+    username: 'logger@company.com',
+    passwordOrApiKey: 'secure_password_or_api_key', // Note the renamed parameter
+    level: Level.ERROR,
+    sendAsHtml: true,
+  )
+  .build();
 ```
 
 ## Email Service Configuration
@@ -102,146 +98,112 @@ sendAsHtml: true,
 
 ```dart
 // Using LoggerBuilder extension
-await LoggerBuilder
-().gmailWithAppPassword
-(
-emailAddress: 'your.app@gmail.com',
-appPassword: 'xxxx-xxxx-xxxx-xxxx', // NOT your Google password!
-toEmails: ['alerts@example.com'],
-)
-    .build();
+await LoggerBuilder()
+  .gmailWithAppPassword(
+    emailAddress: 'your.app@gmail.com',
+    appPassword: 'xxxx-xxxx-xxxx-xxxx', // NOT your Google password!
+    toEmails: ['alerts@example.com'],
+  )
+  .build();
 
 // Using EmailAppenderBuilder
 final appender = await emailAppenderBuilder()
-    .withGmailAppPassword('your.app@gmail.com', 'xxxx-xxxx-xxxx-xxxx')
-    .withTo(['alerts@example.com'])
-    .withLevel(Level.ERROR)
-    .build
-(
-);
+  .withGmailAppPassword('your.app@gmail.com', 'xxxx-xxxx-xxxx-xxxx')
+  .withTo(['alerts@example.com'])
+  .withLevel(Level.ERROR)
+  .build();
 ```
 
-**Get your Gmail app password here:
-** [Google Account → Security → App passwords](https://myaccount.google.com/apppasswords)
+**Get your Gmail app password here:** [Google Account → Security → App passwords](https://myaccount.google.com/apppasswords)
 
 ### Office 365 / Outlook (App Password Required)
 
 ```dart
 // Using LoggerBuilder extension
-await LoggerBuilder
-().outlookWithAppPassword
-(
-emailAddress: 'user@company.com',
-appPassword: 'generated-app-password', // NOT your Microsoft password!
-toEmails: ['team@company.com'],
-)
-    .build();
+await LoggerBuilder()
+  .outlookWithAppPassword(
+    emailAddress: 'user@company.com',
+    appPassword: 'generated-app-password', // NOT your Microsoft password!
+    toEmails: ['team@company.com'],
+  )
+  .build();
 
 // Using EmailAppenderBuilder
 final appender = await emailAppenderBuilder()
-    .withOutlookAppPassword('user@company.com', 'generated-app-password')
-    .withTo(['team@company.com']
-)
-.
-build
-(
-);
+  .withOutlookAppPassword('user@company.com', 'generated-app-password')
+  .withTo(['team@company.com'])
+  .build();
 ```
 
-**Get your Outlook app password here:
-** [Microsoft Account → Security → App passwords](https://account.microsoft.com/security/)
+**Get your Outlook app password here:** [Microsoft Account → Security → App passwords](https://account.microsoft.com/security/)
 
 ### SendGrid (API Key)
 
 ```dart
 // Using LoggerBuilder extension
-await LoggerBuilder
-().sendGridWithApiKey
-(
-apiKey: 'SG.actualApiKeyHere',
-fromEmail: 'noreply@yourapp.com',
-toEmails: ['ops@yourapp.com'],
-)
-    .build();
+await LoggerBuilder()
+  .sendGridWithApiKey(
+    apiKey: 'SG.actualApiKeyHere',
+    fromEmail: 'noreply@yourapp.com',
+    toEmails: ['ops@yourapp.com'],
+  )
+  .build();
 
 // Using EmailAppenderBuilder
 final appender = await emailAppenderBuilder()
-    .withSendGridApiKey('SG.actualApiKeyHere', 'noreply@yourapp.com')
-    .withTo(['ops@yourapp.com']
-)
-.
-build
-(
-);
+  .withSendGridApiKey('SG.actualApiKeyHere', 'noreply@yourapp.com')
+  .withTo(['ops@yourapp.com'])
+  .build();
 ```
 
 ### Mailgun (API Key)
 
 ```dart
 // Using LoggerBuilder extension
-await LoggerBuilder
-().mailgunWithApiKey
-(
-apiKey: 'key-xxxxx',
-domain: 'mg.yourdomain.com',
-fromEmail: 'alerts@yourdomain.com',
-toEmails: ['admin@yourdomain.com'],
-)
-    .build();
+await LoggerBuilder()
+  .mailgunWithApiKey(
+    apiKey: 'key-xxxxx',
+    domain: 'mg.yourdomain.com',
+    fromEmail: 'alerts@yourdomain.com',
+    toEmails: ['admin@yourdomain.com'],
+  )
+  .build();
 
 // Using EmailAppenderBuilder
 final appender = await emailAppenderBuilder()
-    .withMailgunApiKey('key-xxxxx', 'mg.yourdomain.com', 'alerts@yourdomain.com')
-    .withTo(['admin@yourdomain.com']
-)
-.
-build
-(
-);
+  .withMailgunApiKey('key-xxxxx', 'mg.yourdomain.com', 'alerts@yourdomain.com')
+  .withTo(['admin@yourdomain.com'])
+  .build();
 ```
 
 ### AWS SES
 
 ```dart
-
-final appender = await
-emailAppenderBuilder
-().withAwsSes
-(
-region: 'us-east-1',
-smtpUsername: 'AKIA...', // SMTP credentials from SES console
-smtpPassword: 'BLx9...', // NOT your AWS IAM credentials!
-fromEmail: 'noreply@yourdomain.com',
-)
-    .withTo(['alerts@yourdomain.com'
-]
-)
-.
-build
-(
-);
+final appender = await emailAppenderBuilder()
+  .withAwsSes(
+    region: 'us-east-1',
+    smtpUsername: 'AKIA...', // SMTP credentials from SES console
+    smtpPassword: 'BLx9...', // NOT your AWS IAM credentials!
+    fromEmail: 'noreply@yourdomain.com',
+  )
+  .withTo(['alerts@yourdomain.com'])
+  .build();
 ```
 
 ### Custom SMTP
 
 ```dart
-
-final appender = await
-emailAppenderBuilder
-().withCustomSmtp
-(
-host: 'mail.server.com',
-port: 465,
-username: 'logger@server.com',
-password: 'app-specific-password-or-api-key',
-ssl: true,
-fromEmail: 'logger@server.com',
-)
-    .withTo(['admin@server.com'])
-.
-build
-(
-);
+final appender = await emailAppenderBuilder()
+  .withCustomSmtp(
+    host: 'mail.server.com',
+    port: 465,
+    username: 'logger@server.com',
+    password: 'app-specific-password-or-api-key',
+    ssl: true,
+    fromEmail: 'logger@server.com',
+  )
+  .withTo(['admin@server.com'])
+  .build();
 ```
 
 ## Configuration Options
@@ -249,33 +211,26 @@ build
 ### Using Builder Pattern
 
 ```dart
-
-final appender = await
-emailAppenderBuilder
-().withSmtp
-('smtp.example.com
-'
-,
-587
-)
-.withAppPassword('user@example.com', 'app-specific-password') // Clear method name
-    .withFrom('app@example.com', 'My App')
-    .withTo(['dev@example.com', 'ops@example.com'])
-    .withCc(['manager@example.com'])
-    .withBcc(['archive@example.com'])
-    .withReplyTo('support@example.com')
-    .withSubjectPrefix('[PRODUCTION]')
-    .withLevel(Level.ERROR)
-    .withBatchSize(10)
-    .withBatchIntervalMinutes(5)
-    .withRateLimit(20) // Max 20 emails per hour
-    .withHtmlFormat(true)
-    .withStackTraces(true)
-    .withMetadata(true)
-    .withGroupByLevel(false) // Changed default: chronological for better debugging
-    .withImmediateErrors(true)
-    .withErrorThreshold(3)
-    .build();
+final appender = await emailAppenderBuilder()
+  .withSmtp('smtp.example.com', 587)
+  .withAppPassword('user@example.com', 'app-specific-password') // Clear method name
+  .withFrom('app@example.com', 'My App')
+  .withTo(['dev@example.com', 'ops@example.com'])
+  .withCc(['manager@example.com'])
+  .withBcc(['archive@example.com'])
+  .withReplyTo('support@example.com')
+  .withSubjectPrefix('[PRODUCTION]')
+  .withLevel(Level.ERROR)
+  .withBatchSize(10)
+  .withBatchIntervalMinutes(5)
+  .withRateLimit(20) // Max 20 emails per hour
+  .withHtmlFormat(true)
+  .withStackTraces(true)
+  .withMetadata(true)
+  .withGroupByLevel(false) // Changed default: chronological for better debugging
+  .withImmediateErrors(true)
+  .withErrorThreshold(3)
+  .build();
 ```
 
 ### Configuration Parameters
@@ -314,23 +269,11 @@ emailAppenderBuilder
 ### Critical Alert Preset
 
 ```dart
-
-final appender = await
-emailAppenderBuilder
-().withGmailAppPassword
-('alerts@gmail.com
-'
-,
-'
-xxxx-xxxx-xxxx-xxxx
-'
-)
-.withTo(['oncall@example.com'])
-    .withCriticalAlertPreset()
-.
-build
-(
-);
+final appender = await emailAppenderBuilder()
+  .withGmailAppPassword('alerts@gmail.com', 'xxxx-xxxx-xxxx-xxxx')
+  .withTo(['oncall@example.com'])
+  .withCriticalAlertPreset()
+  .build();
 
 // Configures:
 // - Level: ERROR
@@ -343,23 +286,11 @@ build
 ### Daily Digest Preset
 
 ```dart
-
-final appender = await
-emailAppenderBuilder
-().withSendGridApiKey
-('SG.xxxxx
-'
-,
-'
-reports@example.com
-'
-)
-.withTo(['management@example.com'])
-    .withDailyDigestPreset()
-.
-build
-(
-);
+final appender = await emailAppenderBuilder()
+  .withSendGridApiKey('SG.xxxxx', 'reports@example.com')
+  .withTo(['management@example.com'])
+  .withDailyDigestPreset()
+  .build();
 
 // Configures:
 // - Level: INFO
@@ -374,42 +305,36 @@ build
 ### Production Error Monitoring
 
 ```dart
-await LoggerBuilder
-().file
-(
-filePattern: 'app', level: Level.INFO)
-    .sendGridWithApiKey(
-apiKey: env['SENDGRID_API_KEY']!, // Use environment variables!
-fromEmail: 'errors@myapp.com',
-toEmails: ['oncall@myapp.com'],
-level: Level.ERROR,
-subjectPrefix: '[PROD ERROR]',
-batchSize: 5,
-sendImmediatelyOnError: true,
-)
-    .build
-(
-);
+await LoggerBuilder()
+  .file(filePattern: 'app', level: Level.INFO)
+  .sendGridWithApiKey(
+    apiKey: env['SENDGRID_API_KEY']!, // Use environment variables!
+    fromEmail: 'errors@myapp.com',
+    toEmails: ['oncall@myapp.com'],
+    level: Level.ERROR,
+    subjectPrefix: '[PROD ERROR]',
+    batchSize: 5,
+    sendImmediatelyOnError: true,
+  )
+  .build();
 ```
 
 ### Daily Summary Reports
 
 ```dart
-await LoggerBuilder
-().console
-(
-level: Level.INFO)
-    .gmailWithAppPassword(
-emailAddress: 'reports@company.com',
-appPassword: env['GMAIL_APP_PASSWORD']!, // From environment
-toEmails: ['management@company.com'],
-level: Level.INFO,
-subjectPrefix: '[Daily Report]',
-batchSize: 1000,
-batchIntervalMinutes: 1440, // 24 hours
-sendImmediatelyOnError: false,
-)
-    .build();
+await LoggerBuilder()
+  .console(level: Level.INFO)
+  .gmailWithAppPassword(
+    emailAddress: 'reports@company.com',
+    appPassword: env['GMAIL_APP_PASSWORD']!, // From environment
+    toEmails: ['management@company.com'],
+    level: Level.INFO,
+    subjectPrefix: '[Daily Report]',
+    batchSize: 1000,
+    batchIntervalMinutes: 1440, // 24 hours
+    sendImmediatelyOnError: false,
+  )
+  .build();
 ```
 
 ## Troubleshooting
@@ -438,12 +363,10 @@ sendImmediatelyOnError: false,
 ### Enable Debug Logging
 
 ```dart
-await LoggerBuilder
-().withSelfDebug
-(
-Level.DEBUG)
-    .email(/* config */)
-    .build();
+await LoggerBuilder()
+  .withSelfDebug(Level.DEBUG)
+  .email(/* config */)
+  .build();
 ```
 
 ## Security Best Practices

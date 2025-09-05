@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+* Formatter jittered README.md formatting. Fixed
+
 ## 1.1.1
 
 * Email appender now extends FileAppender and has proper rotation cycle functionality that trigger
