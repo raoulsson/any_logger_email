@@ -23,8 +23,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     bool includeHostname = true,
     bool includeAppInfo = true,
     Level level = Level.WARN,
-    RotationCycle rotationCycle =
-        RotationCycle.HOURLY, // Add rotation parameter
+    RotationCycle rotationCycle = RotationCycle.HOURLY, // Add rotation parameter
     String? attachmentFilePattern,
     bool useLocalTimeInSubject = true,
     int maxEmailsPerHour = 20,
@@ -86,8 +85,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     String? fromName,
     Level level = Level.WARN,
     String subjectPrefix = '[LOG]',
-    RotationCycle rotationCycle =
-        RotationCycle.HOURLY, // Add rotation parameter
+    RotationCycle rotationCycle = RotationCycle.HOURLY, // Add rotation parameter
     bool sendAsHtml = true,
     bool includeStackTrace = true,
     bool sendImmediatelyOnError = true,
@@ -125,8 +123,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     String? fromName,
     Level level = Level.WARN,
     String subjectPrefix = '[LOG]',
-    RotationCycle rotationCycle =
-        RotationCycle.HOURLY, // Add rotation parameter
+    RotationCycle rotationCycle = RotationCycle.HOURLY, // Add rotation parameter
     bool sendAsHtml = true,
     bool includeStackTrace = true,
     bool sendImmediatelyOnError = true,
@@ -164,8 +161,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     String? fromName,
     Level level = Level.WARN,
     String subjectPrefix = '[LOG]',
-    RotationCycle rotationCycle =
-        RotationCycle.HOURLY, // Add rotation parameter
+    RotationCycle rotationCycle = RotationCycle.HOURLY, // Add rotation parameter
     bool sendAsHtml = true,
     bool includeStackTrace = true,
     bool sendImmediatelyOnError = true,
@@ -204,8 +200,7 @@ extension EmailLoggerBuilderExtension on LoggerBuilder {
     String? fromName,
     Level level = Level.WARN,
     String subjectPrefix = '[LOG]',
-    RotationCycle rotationCycle =
-        RotationCycle.HOURLY, // Add rotation parameter
+    RotationCycle rotationCycle = RotationCycle.HOURLY, // Add rotation parameter
     bool sendAsHtml = true,
     bool includeStackTrace = true,
     bool sendImmediatelyOnError = true,

@@ -99,9 +99,7 @@ class EmailAppender extends FileAppender {
     appender.filePattern = config['filePattern'] ?? 'email_log';
     appender.fileExtension = config['fileExtension'] ?? 'log';
     appender.path = config['path'] ?? 'email_logs/';
-    appender.attachmentFilePattern = config['attachmentFilePattern'] ??
-        config['filePattern'] ??
-        'log_attachment';
+    appender.attachmentFilePattern = config['attachmentFilePattern'] ?? config['filePattern'] ?? 'log_attachment';
     appender.useLocalTimeInSubject = config['useLocalTimeInSubject'] ?? true;
 
     print('config ');
@@ -115,8 +113,7 @@ class EmailAppender extends FileAppender {
       } else if (rotationValue is RotationCycle) {
         appender.rotationCycle = rotationValue;
       } else {
-        appender.rotationCycle =
-            RotationCycle.fromString(rotationValue.toString());
+        appender.rotationCycle = RotationCycle.fromString(rotationValue.toString());
       }
     } else {
       appender.rotationCycle = RotationCycle.HOURLY;
@@ -147,8 +144,7 @@ class EmailAppender extends FileAppender {
     final toEmailsConfig = config['toEmails'];
     if (toEmailsConfig is String) {
       // Check if it's a JSON string
-      appender.toEmails =
-          toEmailsConfig.split(',').map((e) => e.trim()).toList();
+      appender.toEmails = toEmailsConfig.split(',').map((e) => e.trim()).toList();
     } else if (toEmailsConfig is List) {
       appender.toEmails = List<String>.from(toEmailsConfig);
     } else {
@@ -157,8 +153,7 @@ class EmailAppender extends FileAppender {
 
     // Optional SMTP settings
     appender.username = config['username'];
-    appender.password =
-        config['password'] ?? config['appPassword'] ?? config['app_password'];
+    appender.password = config['password'] ?? config['appPassword'] ?? config['app_password'];
     appender.ssl = config['ssl'] ?? false;
     appender.allowInsecure = config['allowInsecure'] ?? false;
     appender.ignoreBadCertificate = config['ignoreBadCertificate'] ?? false;
@@ -191,8 +186,7 @@ class EmailAppender extends FileAppender {
 
     // Email size settings
     if (config.containsKey('maxEmailSizeMB')) {
-      appender.maxEmailSizeBytes =
-          (config['maxEmailSizeMB'] as num).toInt() * 1024 * 1024;
+      appender.maxEmailSizeBytes = (config['maxEmailSizeMB'] as num).toInt() * 1024 * 1024;
     } else if (config.containsKey('maxEmailSizeBytes')) {
       appender.maxEmailSizeBytes = config['maxEmailSizeBytes'];
     }
@@ -229,8 +223,8 @@ class EmailAppender extends FileAppender {
         appender.path = appender.path.substring(1);
       }
 
-      Logger.getSelfLogger()?.logDebug(
-          'EmailAppender using Flutter path: ${appender.resolvedBasePath}/${appender.path}');
+      Logger.getSelfLogger()
+          ?.logDebug('EmailAppender using Flutter path: ${appender.resolvedBasePath}/${appender.path}');
     }
 
     // Ensure directory exists
@@ -240,14 +234,13 @@ class EmailAppender extends FileAppender {
       try {
         final fileSize = appender.file.lengthSync();
         if (fileSize > 0) {
-          Logger.getSelfLogger()?.logInfo(
-              'Deleting existing log file on restart (${fileSize} bytes): ${appender.file.path}');
+          Logger.getSelfLogger()
+              ?.logInfo('Deleting existing log file on restart (${fileSize} bytes): ${appender.file.path}');
           appender.file.writeAsStringSync(''); // Clear the file
           Logger.getSelfLogger()?.logInfo('Log file cleared on restart');
         }
       } catch (e) {
-        Logger.getSelfLogger()
-            ?.logWarn('Failed to clear log file on restart: $e');
+        Logger.getSelfLogger()?.logWarn('Failed to clear log file on restart: $e');
       }
     }
 
@@ -259,15 +252,13 @@ class EmailAppender extends FileAppender {
       appender._setupSmtpServer();
     }
 
-    Logger.getSelfLogger()
-        ?.logInfo('EmailAppender initialized: ${appender.toString()}');
+    Logger.getSelfLogger()?.logInfo('EmailAppender initialized: ${appender.toString()}');
 
     return appender;
   }
 
   factory EmailAppender.fromConfigSync(Map<String, dynamic> config) {
-    throw UnsupportedError(
-        'EmailAppender requires async initialization. Use fromConfig() or builder().build()');
+    throw UnsupportedError('EmailAppender requires async initialization. Use fromConfig() or builder().build()');
   }
 
   void _setupSmtpServer() {
@@ -311,18 +302,16 @@ class EmailAppender extends FileAppender {
     }
 
     // Check for immediate send on critical errors
-    if (sendImmediatelyOnError &&
-        _errorBuffer.length >= immediateErrorThreshold) {
-      Logger.getSelfLogger()?.logInfo(
-          'Immediate error threshold reached (${_errorBuffer.length} errors). Sending email.');
+    if (sendImmediatelyOnError && _errorBuffer.length >= immediateErrorThreshold) {
+      Logger.getSelfLogger()
+          ?.logInfo('Immediate error threshold reached (${_errorBuffer.length} errors). Sending email.');
       _triggerAsyncSend();
       return;
     }
 
     // Check if rotation period has passed
     if (_shouldSendEmail()) {
-      Logger.getSelfLogger()?.logInfo(
-          'Rotation boundary reached (${rotationCycle.name}). Triggering email send.');
+      Logger.getSelfLogger()?.logInfo('Rotation boundary reached (${rotationCycle.name}). Triggering email send.');
       _triggerAsyncSend();
     }
   }
@@ -344,8 +333,7 @@ class EmailAppender extends FileAppender {
   /// Performs atomic swap and send operation
   Future<void> _performSwapAndSend() async {
     if (_isSwapping) {
-      Logger.getSelfLogger()
-          ?.logDebug('Already swapping, skipping duplicate send');
+      Logger.getSelfLogger()?.logDebug('Already swapping, skipping duplicate send');
       return;
     }
 
@@ -354,8 +342,7 @@ class EmailAppender extends FileAppender {
     try {
       // Step 1: Check if current file has content
       if (!file.existsSync() || file.lengthSync() == 0) {
-        Logger.getSelfLogger()
-            ?.logDebug('Log file empty or doesn\'t exist, skipping send');
+        Logger.getSelfLogger()?.logDebug('Log file empty or doesn\'t exist, skipping send');
         return;
       }
 
@@ -382,11 +369,9 @@ class EmailAppender extends FileAppender {
       final swapFile = File(swapFilePath);
       try {
         await _sendSwapFile(swapFile);
-        Logger.getSelfLogger()
-            ?.logInfo('Successfully sent email from swap file: $swapFilePath');
+        Logger.getSelfLogger()?.logInfo('Successfully sent email from swap file: $swapFilePath');
       } catch (e) {
-        Logger.getSelfLogger()
-            ?.logError('Failed to send email from swap file: $e');
+        Logger.getSelfLogger()?.logError('Failed to send email from swap file: $e');
         // Keep swap file for manual recovery if send failed
         rethrow;
       }
@@ -426,19 +411,17 @@ class EmailAppender extends FileAppender {
   }
 
   /// Sends a single email (possibly part of a multi-part series)
-  Future<void> _sendSingleEmail(
-      File logFile, int partNumber, int totalParts) async {
+  Future<void> _sendSingleEmail(File logFile, int partNumber, int totalParts) async {
     if (test) {
-      Logger.getSelfLogger()?.logDebug(
-          'Test mode: Would send email part $partNumber/$totalParts to ${toEmails.join(", ")}');
+      Logger.getSelfLogger()
+          ?.logDebug('Test mode: Would send email part $partNumber/$totalParts to ${toEmails.join(", ")}');
       _successfulSends++;
       _lastSendTime = DateTime.now();
       return;
     }
 
     try {
-      final message =
-          await _createEmailMessage(logFile, partNumber, totalParts);
+      final message = await _createEmailMessage(logFile, partNumber, totalParts);
 
       await send(message, _smtpServer!);
 
@@ -446,12 +429,10 @@ class EmailAppender extends FileAppender {
       _sentTimestamps.add(DateTime.now());
       _lastSendTime = DateTime.now();
 
-      Logger.getSelfLogger()?.logInfo(
-          'Sent email part $partNumber/$totalParts from ${logFile.path}');
+      Logger.getSelfLogger()?.logInfo('Sent email part $partNumber/$totalParts from ${logFile.path}');
     } catch (e) {
       _failedSends++;
-      Logger.getSelfLogger()
-          ?.logError('Failed to send email part $partNumber/$totalParts: $e');
+      Logger.getSelfLogger()?.logError('Failed to send email part $partNumber/$totalParts: $e');
     }
   }
 
@@ -465,8 +446,7 @@ class EmailAppender extends FileAppender {
     final totalParts = (fileSize / maxEmailSizeBytes).ceil();
     final linesPerPart = (allLines.length / totalParts).ceil();
 
-    Logger.getSelfLogger()?.logInfo(
-        'Splitting ${fileSize} bytes (${allLines.length} lines) into $totalParts parts '
+    Logger.getSelfLogger()?.logInfo('Splitting ${fileSize} bytes (${allLines.length} lines) into $totalParts parts '
         '(~${linesPerPart} lines each, targeting ${maxEmailSizeBytes} bytes per email)');
 
     for (int part = 0; part < totalParts; part++) {
@@ -507,8 +487,7 @@ class EmailAppender extends FileAppender {
   }
 
   /// Creates email message with part information
-  Future<Message> _createEmailMessage(
-      File logFile, int partNumber, int totalParts) async {
+  Future<Message> _createEmailMessage(File logFile, int partNumber, int totalParts) async {
     // This file is now either:
     // - The full swap file (if single email)
     // - A part file (if multiple emails)
@@ -517,8 +496,7 @@ class EmailAppender extends FileAppender {
     final subject = _generateSubject(logFile) + partInfo;
 
     final message = Message()
-      ..from =
-          fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
+      ..from = fromName != null ? Address(fromEmail, fromName) : Address(fromEmail)
       ..recipients.addAll(toEmails.map((e) => Address(e)))
       ..subject = subject;
 
@@ -549,14 +527,12 @@ class EmailAppender extends FileAppender {
     final totalLineCount = nonEmptyLines.length;
     final fileSize = await logFile.length();
 
-    Logger.getSelfLogger()?.logDebug(
-        'Processing ${totalParts > 1 ? "part $partNumber" : "full file"} for email: '
+    Logger.getSelfLogger()?.logDebug('Processing ${totalParts > 1 ? "part $partNumber" : "full file"} for email: '
         'lines=$totalLineCount, size=$fileSize bytes, maxInlineLines=$maxInlineLines');
 
     // Get last maxInlineLines from THIS PART'S content
     final linesToShowInline = totalLineCount > maxInlineLines
-        ? nonEmptyLines.sublist(
-            totalLineCount - maxInlineLines) // Last N lines of this part
+        ? nonEmptyLines.sublist(totalLineCount - maxInlineLines) // Last N lines of this part
         : nonEmptyLines; // All lines if fewer than max
 
     // Analyze log levels from THIS PART
@@ -581,8 +557,7 @@ class EmailAppender extends FileAppender {
 
       message.attachments.add(attachment);
 
-      Logger.getSelfLogger()?.logInfo(
-          'Attached ${totalParts > 1 ? "part $partNumber/$totalParts" : "full file"}: '
+      Logger.getSelfLogger()?.logInfo('Attached ${totalParts > 1 ? "part $partNumber/$totalParts" : "full file"}: '
           '$attachmentName with $totalLineCount lines, $fileSize bytes');
     }
 
@@ -606,16 +581,10 @@ class EmailAppender extends FileAppender {
     return message;
   }
 
-  String _generateHtmlBodyWithAttachment(
-      List<String> linesToShow,
-      int totalLineCount,
-      int fileSize,
-      Map<String, dynamic> stats,
-      int partNumber,
-      int totalParts) {
-    final partInfo = totalParts > 1
-        ? '<div class="part-indicator"><strong>📧 Part $partNumber of $totalParts</strong></div>'
-        : '';
+  String _generateHtmlBodyWithAttachment(List<String> linesToShow, int totalLineCount, int fileSize,
+      Map<String, dynamic> stats, int partNumber, int totalParts) {
+    final partInfo =
+        totalParts > 1 ? '<div class="part-indicator"><strong>📧 Part $partNumber of $totalParts</strong></div>' : '';
 
     final showingPartial = linesToShow.length < totalLineCount;
 
@@ -627,7 +596,7 @@ class EmailAppender extends FileAppender {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { 
+    body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
       color: #333;
@@ -645,7 +614,7 @@ class EmailAppender extends FileAppender {
       font-size: 16px;
       border: 2px solid #ffb74d;
     }
-    .header { 
+    .header {
       background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       color: white;
       padding: 25px;
@@ -653,7 +622,7 @@ class EmailAppender extends FileAppender {
       margin-bottom: 20px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    h2 { 
+    h2 {
       margin-top: 0;
       font-size: 28px;
       border-bottom: 2px solid rgba(255, 255, 255, 0.3);
@@ -681,7 +650,7 @@ class EmailAppender extends FileAppender {
       font-weight: bold;
       margin-top: 5px;
     }
-    .stats { 
+    .stats {
       background: white;
       color: #333;
       margin: 20px 0;
@@ -693,7 +662,7 @@ class EmailAppender extends FileAppender {
       margin-top: 0;
       color: #1e3c72;
     }
-    .stat-line { 
+    .stat-line {
       display: flex;
       justify-content: space-between;
       padding: 8px 12px;
@@ -707,9 +676,9 @@ class EmailAppender extends FileAppender {
     .level-info { background: #e3f2fd; color: #1976d2; }
     .level-debug { background: #f5f5f5; color: #616161; }
     .level-trace { background: #fafafa; color: #9e9e9e; }
-    .logs { 
-      margin: 20px 0; 
-      background-color: #fafafa; 
+    .logs {
+      margin: 20px 0;
+      background-color: #fafafa;
       padding: 15px;
       border: 1px solid #ddd;
       font-family: 'Courier New', monospace;
@@ -718,8 +687,8 @@ class EmailAppender extends FileAppender {
       overflow-y: auto;
       border-radius: 5px;
     }
-    .log-line { 
-      margin: 2px 0; 
+    .log-line {
+      margin: 2px 0;
       padding: 2px 5px;
       white-space: pre-wrap;
       word-wrap: break-word;
@@ -753,7 +722,7 @@ class EmailAppender extends FileAppender {
   $partInfo
   <div class="header">
     <h2>📊 Log Report${totalParts > 1 ? " - Part $partNumber/$totalParts" : ""}</h2>
-    
+
     <div class="info-grid">
       <div class="info-item">
         <div class="info-label">${totalParts > 1 ? "Part Lines" : "Total Lines"}</div>
@@ -771,8 +740,7 @@ class EmailAppender extends FileAppender {
 
     if (includeHostnameOrDeviceId) {
       final hostDisplay = _getHostnameOrDeviceId();
-      final hostLabel =
-          IdProviderResolver.isFlutterApp() ? 'Device ID' : 'Host';
+      final hostLabel = IdProviderResolver.isFlutterApp() ? 'Device ID' : 'Host';
 
       buffer.writeln('''
       <div class="info-item">
@@ -798,8 +766,7 @@ class EmailAppender extends FileAppender {
 
     // Log level statistics from THIS PART
     buffer.writeln('<div class="stats">');
-    buffer.writeln(
-        '<h3>Log Level Distribution ${totalParts > 1 ? "(This Part)" : ""}</h3>');
+    buffer.writeln('<h3>Log Level Distribution ${totalParts > 1 ? "(This Part)" : ""}</h3>');
 
     ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].forEach((level) {
       final count = stats[level] ?? 0;
@@ -820,7 +787,7 @@ class EmailAppender extends FileAppender {
     if (showingPartial) {
       buffer.writeln('''
     <div class="showing-partial">
-      📝 Showing last ${linesToShow.length} of $totalLineCount lines from ${totalParts > 1 ? "this part" : "the log"}. 
+      📝 Showing last ${linesToShow.length} of $totalLineCount lines from ${totalParts > 1 ? "this part" : "the log"}.
       Complete ${totalParts > 1 ? "part" : "log"} attached.
     </div>
     ''');
@@ -828,8 +795,7 @@ class EmailAppender extends FileAppender {
 
     // Log entries (last N lines from THIS PART)
     buffer.writeln('<div class="logs">');
-    buffer.writeln(
-        '<h3>Recent Log Entries${showingPartial ? " (Last ${linesToShow.length} lines)" : ""}'
+    buffer.writeln('<h3>Recent Log Entries${showingPartial ? " (Last ${linesToShow.length} lines)" : ""}'
         '${totalParts > 1 ? " from Part $partNumber" : ""}</h3>');
 
     for (var line in linesToShow) {
@@ -877,13 +843,8 @@ class EmailAppender extends FileAppender {
   }
 
 // Text version with attachment note
-  String _generateTextBodyWithAttachment(
-      List<String> linesToShow,
-      int totalLineCount,
-      int fileSize,
-      Map<String, dynamic> stats,
-      int partNumber,
-      int totalParts) {
+  String _generateTextBodyWithAttachment(List<String> linesToShow, int totalLineCount, int fileSize,
+      Map<String, dynamic> stats, int partNumber, int totalParts) {
     final buffer = StringBuffer();
     final showingPartial = linesToShow.length < totalLineCount;
 
@@ -913,8 +874,7 @@ class EmailAppender extends FileAppender {
     });
 
     buffer.writeln('\n' + '=' * 60);
-    buffer.writeln(
-        'RECENT LOG ENTRIES${showingPartial ? " (LAST ${linesToShow.length} LINES)" : ""}:');
+    buffer.writeln('RECENT LOG ENTRIES${showingPartial ? " (LAST ${linesToShow.length} LINES)" : ""}:');
     buffer.writeln('=' * 60);
 
     for (var line in linesToShow) {
@@ -925,8 +885,7 @@ class EmailAppender extends FileAppender {
 
     buffer.writeln('\n' + '=' * 60);
     if (attachLogFile) {
-      buffer.writeln(
-          '📎 Complete log file attached: $totalLineCount entries, ${_formatFileSize(fileSize)}');
+      buffer.writeln('📎 Complete log file attached: $totalLineCount entries, ${_formatFileSize(fileSize)}');
     }
     buffer.writeln('=' * 60);
 
@@ -953,8 +912,7 @@ class EmailAppender extends FileAppender {
     // Initialize on first check
     if (_lastRotationCheck == null) {
       _lastRotationCheck = now;
-      Logger.getSelfLogger()
-          ?.logDebug('EmailAppender: First check at ${now.toIso8601String()}');
+      Logger.getSelfLogger()?.logDebug('EmailAppender: First check at ${now.toIso8601String()}');
       return false;
     }
 
@@ -963,8 +921,7 @@ class EmailAppender extends FileAppender {
       // Send every minute on the minute for testing
       final shouldSend = _lastRotationCheck!.minute != now.minute;
       if (shouldSend) {
-        Logger.getSelfLogger()?.logInfo(
-            'Test mode: Minute boundary crossed at ${now.minute}:${now.second}');
+        Logger.getSelfLogger()?.logInfo('Test mode: Minute boundary crossed at ${now.minute}:${now.second}');
       }
       return shouldSend;
     }
@@ -992,15 +949,13 @@ class EmailAppender extends FileAppender {
         // Check if we've crossed a 30-minute boundary (00, 30)
         final lastHalf = _lastRotationCheck!.minute ~/ 30;
         final currentHalf = now.minute ~/ 30;
-        shouldSend = lastHalf != currentHalf ||
-            _lastRotationCheck!.hour != now.hour ||
-            _lastRotationCheck!.day != now.day;
+        shouldSend =
+            lastHalf != currentHalf || _lastRotationCheck!.hour != now.hour || _lastRotationCheck!.day != now.day;
         break;
 
       case RotationCycle.HOURLY:
         // Check if we've crossed an hour boundary
-        shouldSend = _lastRotationCheck!.hour != now.hour ||
-            _lastRotationCheck!.day != now.day;
+        shouldSend = _lastRotationCheck!.hour != now.hour || _lastRotationCheck!.day != now.day;
         break;
 
       case RotationCycle.DAILY:
@@ -1050,9 +1005,7 @@ class EmailAppender extends FileAppender {
     }
 
     // Ensure path ends with separator
-    if (fullPath.isNotEmpty &&
-        !fullPath.endsWith('/') &&
-        !fullPath.endsWith('\\')) {
+    if (fullPath.isNotEmpty && !fullPath.endsWith('/') && !fullPath.endsWith('\\')) {
       fullPath += '/';
     }
 
@@ -1100,9 +1053,7 @@ class EmailAppender extends FileAppender {
       // If no level found, count as UNKNOWN or try to infer
       if (!foundLevel) {
         // Try to infer from content patterns
-        if (line.contains('ERROR') ||
-            line.contains('Exception') ||
-            line.contains('Failed')) {
+        if (line.contains('ERROR') || line.contains('Exception') || line.contains('Failed')) {
           stats['ERROR'] = stats['ERROR']! + 1;
         } else if (line.contains('WARN') || line.contains('Warning')) {
           stats['WARN'] = stats['WARN']! + 1;
@@ -1118,9 +1069,8 @@ class EmailAppender extends FileAppender {
     // Log what we found for debugging
     final totalCounted = stats.values.reduce((a, b) => a + b);
     if (totalCounted == 0) {
-      Logger.getSelfLogger()
-          ?.logWarn('No log levels detected in ${lines.length} lines. '
-              'Check that your log format includes level markers.');
+      Logger.getSelfLogger()?.logWarn('No log levels detected in ${lines.length} lines. '
+          'Check that your log format includes level markers.');
     } else {
       Logger.getSelfLogger()?.logDebug('Analyzed ${lines.length} lines: '
           '${stats.entries.where((e) => e.value > 0).map((e) => "${e.key}:${e.value}").join(", ")}');
@@ -1130,16 +1080,13 @@ class EmailAppender extends FileAppender {
   }
 
   String _generateSubject(File logFile) {
-    final hostnameOrDeviceId =
-        includeHostnameOrDeviceId ? ' - ${_getHostnameOrDeviceId()}' : '';
+    final hostnameOrDeviceId = includeHostnameOrDeviceId ? ' - ${_getHostnameOrDeviceId()}' : '';
     final period = ' [${rotationCycle.name}]';
 
     // Use local time for subject
     final now = DateTime.now();
     final roundedTime = _roundToRotationBoundary(now);
-    final timestamp = useLocalTimeInSubject
-        ? _formatLocalDateTime(roundedTime)
-        : roundedTime.toIso8601String();
+    final timestamp = useLocalTimeInSubject ? _formatLocalDateTime(roundedTime) : roundedTime.toIso8601String();
 
     if (IdProviderResolver.isFlutterApp()) {
       return '$subjectPrefix Device ID: $hostnameOrDeviceId$period - $timestamp';
@@ -1393,8 +1340,7 @@ class EmailAppender extends FileAppender {
 
     if (test && rotationCycle == RotationCycle.TEN_MINUTES) {
       // In test mode, next minute
-      return DateTime(
-          now.year, now.month, now.day, now.hour, now.minute + 1, 0);
+      return DateTime(now.year, now.month, now.day, now.hour, now.minute + 1, 0);
     }
 
     switch (rotationCycle) {
@@ -1405,8 +1351,7 @@ class EmailAppender extends FileAppender {
         if (nextBoundary >= 60) {
           return DateTime(now.year, now.month, now.day, now.hour + 1, 0, 0);
         }
-        return DateTime(
-            now.year, now.month, now.day, now.hour, nextBoundary, 0);
+        return DateTime(now.year, now.month, now.day, now.hour, nextBoundary, 0);
 
       case RotationCycle.THIRTY_MINUTES:
         // Next 30-minute boundary
@@ -1457,13 +1402,11 @@ class EmailAppender extends FileAppender {
     switch (rotationCycle) {
       case RotationCycle.TEN_MINUTES:
         final minute = (date.minute ~/ 10) * 10;
-        return DateTime(
-            date.year, date.month, date.day, date.hour, minute, 0, 0);
+        return DateTime(date.year, date.month, date.day, date.hour, minute, 0, 0);
 
       case RotationCycle.THIRTY_MINUTES:
         final minute = (date.minute ~/ 30) * 30;
-        return DateTime(
-            date.year, date.month, date.day, date.hour, minute, 0, 0);
+        return DateTime(date.year, date.month, date.day, date.hour, minute, 0, 0);
 
       case RotationCycle.HOURLY:
         return DateTime(date.year, date.month, date.day, date.hour, 0, 0, 0);
@@ -1525,8 +1468,7 @@ class EmailAppender extends FileAppender {
     buffer.writeln('  Password Set: ${config['hasPassword']}');
 
     buffer.writeln('\n✉️ Email Settings:');
-    buffer.writeln(
-        '  From: ${config['fromEmail']} ${config['fromName'] != null ? '(${config['fromName']})' : ''}');
+    buffer.writeln('  From: ${config['fromEmail']} ${config['fromName'] != null ? '(${config['fromName']})' : ''}');
     buffer.writeln('  To: ${(config['toEmails'] as List).join(', ')}');
     if ((config['ccEmails'] as List).isNotEmpty) {
       buffer.writeln('  CC: ${(config['ccEmails'] as List).join(', ')}');
@@ -1535,12 +1477,10 @@ class EmailAppender extends FileAppender {
       buffer.writeln('  BCC: ${(config['bccEmails'] as List).join(', ')}');
     }
     buffer.writeln('  Subject Prefix: ${config['subjectPrefix']}');
-    buffer.writeln(
-        '  Attachment Pattern: ${config['attachmentFilePattern'] ?? 'default'}');
+    buffer.writeln('  Attachment Pattern: ${config['attachmentFilePattern'] ?? 'default'}');
 
     buffer.writeln('\n🔄 Rotation Settings:');
-    buffer.writeln(
-        '  Cycle: ${config['rotationCycle']} (${config['rotationCycleValue']})');
+    buffer.writeln('  Cycle: ${config['rotationCycle']} (${config['rotationCycleValue']})');
     buffer.writeln('  Last Check: ${config['lastRotationCheck'] ?? 'never'}');
     buffer.writeln('  Next Rotation: ${config['nextRotationTime'] ?? 'N/A'}');
     if (config['minutesUntilRotation'] != null) {
