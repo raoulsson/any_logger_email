@@ -467,7 +467,7 @@ class EmailAppender extends FileAppender {
 
     Logger.getSelfLogger()?.logInfo(
         'Splitting ${fileSize} bytes (${allLines.length} lines) into $totalParts parts '
-            '(~${linesPerPart} lines each, targeting ${maxEmailSizeBytes} bytes per email)');
+        '(~${linesPerPart} lines each, targeting ${maxEmailSizeBytes} bytes per email)');
 
     for (int part = 0; part < totalParts; part++) {
       final startLine = part * linesPerPart;
@@ -908,7 +908,7 @@ class EmailAppender extends FileAppender {
     ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].forEach((level) {
       final count = stats[level] ?? 0;
       if (count > 0) {
-        buffer.writeln('$level:&nbsp;$count');
+        buffer.writeln('$level: $count');
       }
     });
 
